@@ -3,117 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiếm Lai Gold Bot - Chỉnh Màu Nến</title>
+    <title>Siêu Bot Gold & BTC 24/7</title>
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        :root { --bg: #0b0e11; --card: #1e2329; --gold: #f0b90b; --buy: #2ebd85; --sell: #f6465d; --text: #eaecef; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; padding: 10px; }
-        .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .stat-card { background: var(--card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #2b3139; }
-        .label { font-size: 10px; color: #848e9c; margin-bottom: 4px; }
-        .value { font-size: 16px; font-weight: bold; }
-        .sync-box { background: #1e2329; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 8px; border: 1px solid var(--gold); }
-        .sync-box input { flex: 1; background: #0b0e11; border: 1px solid #474d57; color: white; padding: 8px; border-radius: 4px; outline: none; }
-        #signal-box { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 10px; border: 1px solid #474d57; transition: 0.5s; }
-        .buy-act { background: var(--buy) !important; color: white; box-shadow: 0 0 15px var(--buy); }
-        .sell-act { background: var(--sell) !important; color: white; box-shadow: 0 0 15px var(--sell); }
-        #chart { height: 350px; width: 100%; border-radius: 8px; border: 1px solid #2b3139; }
-        .btn-main { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; background: var(--gold); color: black; margin-bottom: 10px; cursor: pointer; }
+        body { background: #131722; color: white; font-family: sans-serif; margin: 0; padding: 10px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .box { background: #1e222d; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #363a45; }
+        .label { font-size: 12px; color: #848e9c; margin-bottom: 5px; text-transform: uppercase; }
+        .value { font-size: 20px; font-weight: bold; color: #f0b90b; }
+        input { width: 80%; padding: 10px; background: #2a2e39; border: 1px solid #444; color: white; border-radius: 4px; margin-bottom: 10px; }
+        button { width: 100%; padding: 12px; background: #f0b90b; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        #chart { height: 300px; margin-top: 10px; border-radius: 8px; overflow: hidden; }
+        .status { background: #f0b90b; color: black; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="sync-box">
-    <input type="number" id="exness-price" placeholder="Nhập giá Exness hiện tại...">
-    <button onclick="syncPrice()" style="background:var(--gold); border:none; padding:8px 15px; border-radius:4px; font-weight:bold;">SYNC</button>
-</div>
+    <input type="number" id="exnessPrice" placeholder="Nhập giá Exness hiện tại...">
+    <button onclick="syncPrice()">SYNC (KHỚP GIÁ)</button>
 
-<div class="dashboard">
-    <div class="stat-card"><div class="label">RSI (14)</div><div id="rsi-val" class="value">--</div></div>
-    <div class="stat-card"><div class="label">LỆCH (OFFSET)</div><div id="offset-val" class="value">0.00</div></div>
-    <div class="stat-card"><div class="label">GIÁ ĐÃ KHỚP</div><div id="price-val" class="value" style="color:var(--gold)">--</div></div>
-    <div class="stat-card"><div class="label">XU HƯỚNG</div><div id="trend-val" class="value">--</div></div>
-</div>
-
-<button class="btn-main" id="startBtn" onclick="initBot()">BẮT ĐẦU QUÉT LỆNH</button>
-
-<div id="signal-box" style="background: #2b3139;">
-    <div id="sig-text" style="font-size: 18px; font-weight: 800;">CHỜ DỮ LIỆU...</div>
-    <div id="sig-details" style="display:none; justify-content: space-around; margin-top:10px; font-size:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
-        <div>ENTRY: <b id="en-p">--</b></div>
-        <div>TP: <b id="tp-p">--</b></div>
-        <div>SL: <b id="sl-p">--</b></div>
+    <div class="grid" style="margin-top:15px;">
+        <div class="box"><div class="label">Cặp Tài Sản</div><div id="symbolLabel" class="value">XAU/BTC</div></div>
+        <div class="box"><div class="label">RSI (Cực Nhạy)</div><div id="rsiVal" class="value">--</div></div>
+        <div class="box"><div class="label">Lệch (Offset)</div><div id="offsetVal" class="value">0.00</div></div>
+        <div class="box"><div class="label">Giá Đã Khớp</div><div id="syncedPrice" class="value">--</div></div>
     </div>
-</div>
 
-<div id="chart"></div>
-<audio id="alert-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+    <div id="status" class="status">BOT ĐANG QUÉT: XAUUSD & BTCUSDT (M1)</div>
+    <div id="chart"></div>
 
-<script>
-    const TELEGRAM_TOKEN = '8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE';
-    const TELEGRAM_CHAT_ID = '7994694689';
-    let currentOffset = 0.0, lastRawPrice = 0.0, history = [], lastSignal = "wait";
-
-    // CẤU HÌNH BIỂU ĐỒ MÀU NẾN
-    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-        layout: { backgroundColor: '#0b0e11', textColor: '#d1d4dc' },
-        grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
-        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-        priceScale: { borderColor: '#485c7b' },
-        timeScale: { borderColor: '#485c7b', timeVisible: true }
-    });
-
-    const candleSeries = chart.addCandlestickSeries({
-        upColor: '#2ebd85', downColor: '#f6465d', borderVisible: false,
-        wickUpColor: '#2ebd85', wickDownColor: '#f6465d'
-    });
-
-    function syncPrice() {
-        const exPrice = parseFloat(document.getElementById('exness-price').value);
-        if (exPrice && lastRawPrice > 0) {
-            currentOffset = exPrice - lastRawPrice;
-            document.getElementById('offset-val').innerText = currentOffset.toFixed(2);
-        }
-    }
-
-    function initBot() {
-        document.getElementById('startBtn').innerText = "BOT ĐANG CHẠY...";
-        const ws = new WebSocket('wss://stream.binance.com:9443/ws/paxgusdt@kline_5m');
-        ws.onmessage = (e) => {
-            const k = JSON.parse(e.data).k;
-            lastRawPrice = parseFloat(k.c);
-            const price = lastRawPrice + currentOffset;
-            document.getElementById('price-val').innerText = price.toFixed(2);
-            
-            candleSeries.update({ 
-                time: k.t/1000, 
-                open: parseFloat(k.o)+currentOffset, 
-                high: parseFloat(k.h)+currentOffset, 
-                low: parseFloat(k.l)+currentOffset, 
-                close: price 
-            });
-
-            if (k.x) {
-                history.push(price);
-                if (history.length > 50) history.shift();
-                calculateIndicators(price);
-            }
+    <script>
+        // CẤU HÌNH SIÊU NHẠY
+        const CONFIG = {
+            symbols: ["XAUUSD", "BTCUSDT"], 
+            interval: "1m", // Khung 1 phút để nhiều lệnh
+            rsiPeriod: 14,
+            rsiUpper: 60, // Chạm 60 báo SELL (Nhiều kèo hơn)
+            rsiLower: 40, // Chạm 40 báo BUY (Nhiều kèo hơn)
+            telegramToken: "7553580554:AAH3kP7CidTzUvF3LzDOnn8X_80-O96M78E", 
+            chatId: "5919747180" 
         };
-    }
 
-    function calculateIndicators(price) {
-        if (history.length < 20) return;
-        // Logic tính RSI và EMA đơn giản để hiện thị
-        let rsi = 50; // Giả lập để hiện thị nhanh
-        document.getElementById('rsi-val').innerText = rsi;
-        document.getElementById('trend-val').innerText = "ỔN ĐỊNH";
-        checkSignal(price, rsi);
-    }
+        let currentOffset = 0;
+        let lastBinancePrice = 0;
 
-    function checkSignal(price, rsi) {
-        // Logic báo lệnh và gửi Telegram
-        // (Phần này giữ nguyên như các bản trước)
-    }
-</script>
+        function syncPrice() {
+            const exPrice = parseFloat(document.getElementById('exnessPrice').value);
+            if (exPrice && lastBinancePrice) {
+                currentOffset = exPrice - lastBinancePrice;
+                document.getElementById('offsetVal').innerText = currentOffset.toFixed(2);
+                alert("Đã đồng bộ thành công!");
+            }
+        }
+
+        // Khởi tạo biểu đồ Lightweight Charts
+        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+            layout: { backgroundColor: '#131722', textColor: '#d1d4dc' },
+            grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
+            timeScale: { timeVisible: true, secondsVisible: false }
+        });
+        const candleSeries = chart.addCandlestickSeries();
+
+        async function fetchData() {
+            for (let sym of CONFIG.symbols) {
+                try {
+                    const resp = await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${CONFIG.interval}&limit=100`);
+                    const data = await resp.json();
+                    
+                    const prices = data.map(d => parseFloat(d[4]));
+                    lastBinancePrice = prices[prices.length - 1];
+                    
+                    // Tính RSI đơn giản
+                    const rsi = calculateRSI(prices);
+                    document.getElementById('rsiVal').innerText = rsi.toFixed(2);
+                    document.getElementById('syncedPrice').innerText = (lastBinancePrice + currentOffset).toFixed(2);
+
+                    // Gửi thông báo Telegram nếu chạm ngưỡng
+                    if (rsi >= CONFIG.rsiUpper) sendTele(`🚨 KÈO SELL ${sym}\nRSI: ${rsi.toFixed(2)}\nGiá: ${(lastBinancePrice + currentOffset).toFixed(2)}`);
+                    if (rsi <= CONFIG.rsiLower) sendTele(`✅ KÈO BUY ${sym}\nRSI: ${rsi.toFixed(2)}\nGiá: ${(lastBinancePrice + currentOffset).toFixed(2)}`);
+
+                } catch (e) { console.error(e); }
+            }
+        }
+
+        function calculateRSI(prices) {
+            let gains = 0, losses = 0;
+            for (let i = prices.length - 14; i < prices.length; i++) {
+                let diff = prices[i] - prices[i - 1];
+                if (diff >= 0) gains += diff; else losses -= diff;
+            }
+            return 100 - (100 / (1 + (gains / losses)));
+        }
+
+        function sendTele(msg) {
+            fetch(`https://api.telegram.org/bot${CONFIG.telegramToken}/sendMessage?chat_id=${CONFIG.chatId}&text=${encodeURIComponent(msg)}`);
+        }
+
+        setInterval(fetchData, 5000); // Quét mỗi 5 giây
+    </script>
 </body>
 </html>
