@@ -3,82 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC 10 Lệnh/Ngày - Fix</title>
+    <title>BOT BTC SIÊU CẤP - FIX LỖI</title>
     <style>
-        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .box { background: #1e2329; border: 2px solid #f0b90b; border-radius: 15px; padding: 20px; margin-bottom: 20px; }
-        .price { font-size: 35px; font-weight: bold; color: #f0b90b; margin: 10px 0; }
-        .rsi { font-size: 20px; color: #2ebd85; }
-        input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #2b3139; color: white; font-size: 16px; }
-        button { width: 100%; padding: 15px; background: #f0b90b; border: none; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 18px; }
-        #log { font-size: 12px; color: #848e9c; margin-top: 20px; text-align: left; height: 100px; overflow-y: scroll; border: 1px solid #333; padding: 5px; }
+        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
+        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 15px; background: #1e2329; margin-bottom: 15px; }
+        .price { font-size: 30px; font-weight: bold; color: #f0b90b; }
+        .rsi { font-size: 24px; color: #2ebd85; margin: 10px 0; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: 1px solid #444; background: #2b3139; color: white; }
+        button { width: 100%; padding: 15px; background: #f0b90b; font-weight: bold; border-radius: 5px; border: none; cursor: pointer; }
+        #status { font-size: 12px; color: #848e9c; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div class="box">
-        <div style="color: #848e9c;">GIÁ BTC EXNESS</div>
-        <div id="displayPrice" class="price">ĐANG TẢI...</div>
-        <div class="rsi">RSI (1M): <span id="displayRSI">--</span></div>
+        <div id="pairName">BTC/USD (EXNESS)</div>
+        <div id="price" class="price">ĐANG TẢI...</div>
+        <div id="rsi" class="rsi">RSI: --</div>
     </div>
 
-    <input type="number" id="inputPrice" placeholder="Nhập giá BTC Exness vào đây...">
-    <button onclick="sync()">KÍCH HOẠT (SYNC)</button>
-
-    <div id="log">Nhật ký hệ thống: Đang khởi động...</div>
+    <input type="number" id="exPrice" placeholder="Nhập giá BTC trên Exness...">
+    <button onclick="sync()">BẤM ĐỂ SYNC & CHẠY BOT</button>
+    <div id="status">Trạng thái: Đang đợi lệnh SYNC...</div>
 
     <script>
-        const TG_TOKEN = "7553580554:AAH3kP7CidTzUvF3LzDOnn8X_80-O96M78E";
+        const TOKEN = "7553580554:AAH3kP7CidTzUvF3LzDOnn8X_80-O96M78E";
         const CHAT_ID = "5919747180";
         let offset = 0;
 
-        function addLog(msg) {
-            const log = document.getElementById('log');
-            log.innerHTML += `<div>> ${msg}</div>`;
-            log.scrollTop = log.scrollHeight;
+        async function sync() {
+            const val = parseFloat(document.getElementById('exPrice').value);
+            const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
+            const d = await r.json();
+            offset = val - parseFloat(d.price);
+            document.getElementById('status').innerText = "✅ ĐÃ KẾT NỐI - ĐANG QUÉT KÈO...";
+            alert("Bot đã bắt đầu chạy ngầm!");
+            update();
         }
 
-        function sync() {
-            const val = parseFloat(document.getElementById('inputPrice').value);
-            fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT')
-                .then(r => r.json())
-                .then(data => {
-                    const binancePrice = parseFloat(data.price);
-                    offset = val - binancePrice;
-                    addLog(`Đã khớp giá! Độ lệch: ${offset.toFixed(2)}`);
-                    alert("Đã đồng bộ thành công!");
-                });
+        async function update() {
+            try {
+                // Sử dụng API trực tiếp để tránh lag trên iQOO
+                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=20');
+                const data = await r.json();
+                const prices = data.map(d => parseFloat(d[4]));
+                const lastPrice = prices[prices.length - 1];
+
+                // Công thức RSI rút gọn
+                let g = 0, l = 0;
+                for (let i = prices.length - 14; i < prices.length; i++) {
+                    let d = prices[i] - prices[i-1];
+                    if (d >= 0) g += d; else l -= d;
+                }
+                const rsiVal = 100 - (100 / (1 + (g / l)));
+
+                document.getElementById('price').innerText = (lastPrice + offset).toFixed(2);
+                document.getElementById('rsi').innerText = "RSI: " + rsiVal.toFixed(2);
+
+                if (rsiVal >= 55) send("🚀 SELL BTC: " + (lastPrice + offset).toFixed(2));
+                if (rsiVal <= 45) send("🔥 BUY BTC: " + (lastPrice + offset).toFixed(2));
+
+            } catch (e) { document.getElementById('status').innerText = "Lỗi mạng, đang thử lại..."; }
         }
 
-        function update() {
-            fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=30')
-                .then(r => r.json())
-                .then(data => {
-                    const prices = data.map(d => parseFloat(d[4]));
-                    const lastPrice = prices[prices.length - 1];
-                    
-                    // Tính RSI nhanh
-                    let gains = 0, losses = 0;
-                    for (let i = prices.length - 14; i < prices.length; i++) {
-                        let diff = prices[i] - prices[i-1];
-                        if (diff >= 0) gains += diff; else losses -= diff;
-                    }
-                    const rsi = 100 - (100 / (1 + (gains / losses)));
-
-                    document.getElementById('displayPrice').innerText = (lastPrice + offset).toFixed(2);
-                    document.getElementById('displayRSI').innerText = rsi.toFixed(2);
-
-                    if (rsi >= 55) sendTele(`🚀 BTC SELL: ${(lastPrice + offset).toFixed(2)} (RSI: ${rsi.toFixed(2)})`);
-                    if (rsi <= 45) sendTele(`🔥 BTC BUY: ${(lastPrice + offset).toFixed(2)} (RSI: ${rsi.toFixed(2)})`);
-                })
-                .catch(err => addLog("Lỗi kết nối: " + err));
+        function send(m) {
+            fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(m)}`);
         }
 
-        function sendTele(msg) {
-            fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`);
-        }
-
-        setInterval(update, 5000); // Cập nhật mỗi 5 giây
+        setInterval(update, 5000); // Quét mỗi 5 giây
     </script>
 </body>
 </html>
