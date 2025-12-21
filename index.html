@@ -3,28 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOT BTC SIÊU CẤP - FIX LỖI</title>
+    <title>BOT BTC - TEST TELEGRAM</title>
     <style>
         body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
-        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 15px; background: #1e2329; margin-bottom: 15px; }
-        .price { font-size: 30px; font-weight: bold; color: #f0b90b; }
+        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 20px; background: #1e2329; margin-bottom: 15px; }
+        .price { font-size: 35px; font-weight: bold; color: #f0b90b; }
         .rsi { font-size: 24px; color: #2ebd85; margin: 10px 0; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: 1px solid #444; background: #2b3139; color: white; }
-        button { width: 100%; padding: 15px; background: #f0b90b; font-weight: bold; border-radius: 5px; border: none; cursor: pointer; }
-        #status { font-size: 12px; color: #848e9c; margin-top: 10px; }
+        input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #2b3139; color: white; font-size: 16px; }
+        button { width: 100%; padding: 18px; background: #f0b90b; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; font-size: 18px; }
+        #status { font-size: 13px; color: #848e9c; margin-top: 15px; border-top: 1px solid #333; padding-top: 10px; }
     </style>
 </head>
 <body>
 
     <div class="box">
-        <div id="pairName">BTC/USD (EXNESS)</div>
+        <div style="color: #848e9c; font-size: 12px;">BTC/USD EXNESS</div>
         <div id="price" class="price">ĐANG TẢI...</div>
         <div id="rsi" class="rsi">RSI: --</div>
     </div>
 
-    <input type="number" id="exPrice" placeholder="Nhập giá BTC trên Exness...">
-    <button onclick="sync()">BẤM ĐỂ SYNC & CHẠY BOT</button>
-    <div id="status">Trạng thái: Đang đợi lệnh SYNC...</div>
+    <input type="number" id="exPrice" placeholder="Nhập giá BTC Exness hiện tại...">
+    <button onclick="sync()">KÍCH HOẠT & TEST TELE</button>
+    
+    <div id="status">Trạng thái: Đang chờ bro bấm nút...</div>
 
     <script>
         const TOKEN = "7553580554:AAH3kP7CidTzUvF3LzDOnn8X_80-O96M78E";
@@ -33,23 +34,29 @@
 
         async function sync() {
             const val = parseFloat(document.getElementById('exPrice').value);
-            const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
-            const d = await r.json();
-            offset = val - parseFloat(d.price);
-            document.getElementById('status').innerText = "✅ ĐÃ KẾT NỐI - ĐANG QUÉT KÈO...";
-            alert("Bot đã bắt đầu chạy ngầm!");
-            update();
+            if (!val) return alert("Nhập giá Exness đã bro!");
+            
+            try {
+                const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
+                const d = await r.json();
+                offset = val - parseFloat(d.price);
+                
+                document.getElementById('status').innerText = "🚀 ĐÃ GỬI TIN NHẮN THỬ NGHIỆM...";
+                // Gửi tin nhắn test ngay lập tức
+                send("🔔 TEST: Bot đã thông nòng! Đang bắt đầu quét kèo cho bro nhé!");
+                
+                alert("Đã gửi tin nhắn Test về Telegram! Nếu không thấy báo, hãy kiểm tra lại Token/ID.");
+                update();
+            } catch (e) { alert("Lỗi kết nối sàn!"); }
         }
 
         async function update() {
             try {
-                // Sử dụng API trực tiếp để tránh lag trên iQOO
-                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=20');
+                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=30');
                 const data = await r.json();
                 const prices = data.map(d => parseFloat(d[4]));
                 const lastPrice = prices[prices.length - 1];
 
-                // Công thức RSI rút gọn
                 let g = 0, l = 0;
                 for (let i = prices.length - 14; i < prices.length; i++) {
                     let d = prices[i] - prices[i-1];
@@ -60,10 +67,11 @@
                 document.getElementById('price').innerText = (lastPrice + offset).toFixed(2);
                 document.getElementById('rsi').innerText = "RSI: " + rsiVal.toFixed(2);
 
-                if (rsiVal >= 55) send("🚀 SELL BTC: " + (lastPrice + offset).toFixed(2));
-                if (rsiVal <= 45) send("🔥 BUY BTC: " + (lastPrice + offset).toFixed(2));
+                // Ngưỡng siêu nhạy: 55/45 để có 10 lệnh/ngày
+                if (rsiVal >= 55) send("🚀 SELL BTC: " + (lastPrice + offset).toFixed(2) + " (RSI: " + rsiVal.toFixed(2) + ")");
+                if (rsiVal <= 45) send("🔥 BUY BTC: " + (lastPrice + offset).toFixed(2) + " (RSI: " + rsiVal.toFixed(2) + ")");
 
-            } catch (e) { document.getElementById('status').innerText = "Lỗi mạng, đang thử lại..."; }
+            } catch (e) { console.log("Đang quét..."); }
         }
 
         function send(m) {
