@@ -3,103 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOT VÀNG & BTC CHUẨN</title>
+    <title>GOLD RECOVERY BOT</title>
     <style>
-        body { background: #0b0e11; color: white; font-family: sans-serif; padding: 10px; }
-        .box { border: 2px solid #f0b90b; border-radius: 12px; padding: 15px; background: #1c1f24; margin-bottom: 10px; }
-        .price { font-size: 32px; font-weight: bold; color: #f0b90b; }
-        .rsi { font-size: 20px; color: #2ebd85; margin: 5px 0; }
-        input { width: 90%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #1e2329; color: white; }
-        button { width: 100%; padding: 15px; background: #2ebd85; color: white; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; font-size: 18px; }
-        #status { font-size: 12px; color: #848e9c; margin-top: 10px; }
+        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 20px; background: #1c1f24; margin-bottom: 20px; }
+        .price { font-size: 42px; font-weight: bold; color: #f0b90b; }
+        .rsi { font-size: 24px; color: #2ebd85; margin: 10px 0; }
+        input { width: 90%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #444; background: #1e2329; color: white; font-size: 18px; }
+        button { width: 100%; padding: 18px; background: #f0b90b; color: black; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; font-size: 20px; }
     </style>
 </head>
 <body>
     <div class="box">
-        <div>XAU/USD (VÀNG EXNESS)</div>
-        <div id="goldPrice" class="price">--</div>
-        <div id="goldRsi" class="rsi">RSI: --</div>
-        <input type="number" id="exGold" step="0.01" placeholder="Nhập giá Vàng Exness hiện tại...">
+        <div style="color: #848e9c; font-size: 16px;">VÀNG (XAU/USD) - EXNESS</div>
+        <div id="price" class="price">ĐANG TẢI...</div>
+        <div id="rsi" class="rsi">RSI: --</div>
     </div>
 
-    <div class="box">
-        <div>BTC/USD (BTC EXNESS)</div>
-        <div id="btcPrice" class="price">--</div>
-        <div id="btclRsi" class="rsi">RSI: --</div>
-        <input type="number" id="exBtc" step="0.01" placeholder="Nhập giá BTC Exness hiện tại...">
-    </div>
-
-    <button onclick="activate()">KÍCH HOẠT HỆ THỐNG</button>
-    <div id="status">Trạng thái: Đang đợi bro...</div>
+    <input type="number" id="exPrice" step="0.01" placeholder="Nhập giá Vàng Exness hiện tại...">
+    <button onclick="startBot()">KÍCH HOẠT SOI VÀNG</button>
+    <div id="status" style="margin-top: 15px; color: #848e9c;">Trạng thái: Đang đợi bro nhập giá...</div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-        let gOff = 0, bOff = 0;
-        let lastG = "", lastB = "";
+        let offset = 0;
+        let lastAction = "";
 
-        async function activate() {
-            const gV = parseFloat(document.getElementById('exGold').value) || 0;
-            const bV = parseFloat(document.getElementById('exBtc').value) || 0;
+        async function startBot() {
+            const val = parseFloat(document.getElementById('exPrice').value);
+            if(!val) return alert("Nhập giá Vàng đã bro!");
             
-            // Sync giá thực tế
-            const [rg, rb] = await Promise.all([
-                fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT').then(r => r.json()),
-                fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r => r.json())
-            ]);
-            
-            gOff = gV ? gV - parseFloat(rg.price) : 0;
-            bOff = bV ? bV - parseFloat(rb.price) : 0;
-
-            document.getElementById('status').innerText = "🚀 BOT ĐANG QUÉT CẢ VÀNG & BTC...";
-            sendTele("🎯 HỆ THỐNG ĐÃ KÍCH HOẠT!\n💎 Chờ kèo Vàng & BTC có SL/TP...");
-            setInterval(scan, 3000); // Tăng tốc độ quét lên 3 giây/lần
-        }
-
-        async function scan() {
-            // Quét Vàng
-            const gData = await getRSI('PAXGUSDT');
-            handleSignal("GOLD", gData.rsi, gData.last + gOff, 65, 35, 2, 5); // SL 2 giá, TP 5 giá cho Vàng
-
-            // Quét BTC
-            const bData = await getRSI('BTCUSDT');
-            handleSignal("BTC", bData.rsi, bData.last + bOff, 65, 35, 400, 800); // SL 400 giá, TP 800 giá cho BTC
-        }
-
-        async function getRSI(s) {
-            const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${s}&interval=1m&limit=30`);
+            const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
             const d = await r.json();
-            const p = d.map(x => parseFloat(x[4]));
-            let g = 0, l = 0;
-            for (let i = p.length - 14; i < p.length; i++) {
-                let diff = p[i] - p[i-1];
-                if (diff >= 0) g += diff; else l -= diff;
-            }
-            return { rsi: 100 - (100 / (1 + (g / l))), last: p[p.length - 1] };
+            offset = val - parseFloat(d.price);
+            
+            document.getElementById('status').innerText = "✅ ĐÃ KẾT NỐI - ĐANG QUÉT VÀNG M1...";
+            sendTele("💰 BOT VÀNG ĐÃ CHẠY!\nĐang canh vùng RSI 65/35 cho bro...");
+            setInterval(update, 4000); 
         }
 
-        function handleSignal(name, rsi, price, hi, lo, slDist, tpDist) {
-            const rsiElem = name === "GOLD" ? "goldRsi" : "btclRsi";
-            const prElem = name === "GOLD" ? "goldPrice" : "btcPrice";
-            document.getElementById(prElem).innerText = price.toFixed(2);
-            document.getElementById(rsiElem).innerText = "RSI: " + rsi.toFixed(2);
+        async function update() {
+            try {
+                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1m&limit=30');
+                const d = await r.json();
+                const p = d.map(x => parseFloat(x[4]));
+                const lastPrice = p[p.length - 1] + offset;
 
-            let side = "";
-            if (rsi >= hi) side = "SELL";
-            else if (rsi <= lo) side = "BUY";
+                let g = 0, l = 0;
+                for (let i = p.length - 14; i < p.length; i++) {
+                    let diff = p[i] - p[i-1];
+                    if (diff >= 0) g += diff; else l -= diff;
+                }
+                const rsi = 100 - (100 / (1 + (g / l)));
 
-            let last = name === "GOLD" ? lastG : lastB;
+                document.getElementById('price').innerText = lastPrice.toFixed(2);
+                document.getElementById('rsi').innerText = "RSI: " + rsi.toFixed(2);
 
-            if (side !== "" && side !== last) {
-                const sl = side === "SELL" ? price + slDist : price - slDist;
-                const tp = side === "SELL" ? price - tpDist : price + tpDist;
-                
-                let m = `🔔 [KÈO ${name} ${side}]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`;
-                sendTele(m);
-                if (name === "GOLD") lastG = side; else lastB = side;
-            } else if (rsi > 45 && rsi < 55) {
-                if (name === "GOLD") lastG = ""; else lastB = "";
-            }
+                if (rsi >= 65 && lastAction !== "SELL") {
+                    const sl = (lastPrice + 3).toFixed(2);
+                    const tp = (lastPrice - 6).toFixed(2);
+                    sendTele(`🔱 [KÈO VÀNG SELL]\n📍 Entry: ${lastPrice.toFixed(2)}\n🚫 SL: ${sl}\n✅ TP: ${tp}\n📊 RSI: ${rsi.toFixed(2)}`);
+                    lastAction = "SELL";
+                } else if (rsi <= 35 && lastAction !== "BUY") {
+                    const sl = (lastPrice - 3).toFixed(2);
+                    const tp = (lastPrice + 6).toFixed(2);
+                    sendTele(`🔱 [KÈO VÀNG BUY]\n📍 Entry: ${lastPrice.toFixed(2)}\n🚫 SL: ${sl}\n✅ TP: ${tp}\n📊 RSI: ${rsi.toFixed(2)}`);
+                    lastAction = "BUY";
+                } else if (rsi > 45 && rsi < 55) {
+                    lastAction = "";
+                }
+            } catch (e) {}
         }
 
         function sendTele(m) {
