@@ -3,71 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOLD & BTC SCALPER</title>
+    <title>BOT VÀNG & BTC CHUẨN</title>
     <style>
-        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
-        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 15px; background: #1c1f24; margin-bottom: 15px; }
-        .price { font-size: 30px; font-weight: bold; color: #f0b90b; }
+        body { background: #0b0e11; color: white; font-family: sans-serif; padding: 10px; }
+        .box { border: 2px solid #f0b90b; border-radius: 12px; padding: 15px; background: #1c1f24; margin-bottom: 10px; }
+        .price { font-size: 32px; font-weight: bold; color: #f0b90b; }
         .rsi { font-size: 20px; color: #2ebd85; margin: 5px 0; }
-        input { width: 80%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #1e2329; color: white; }
-        button { width: 90%; padding: 15px; background: #f0b90b; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #1e2329; color: white; }
+        button { width: 100%; padding: 15px; background: #2ebd85; color: white; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; font-size: 18px; }
+        #status { font-size: 12px; color: #848e9c; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="box">
-        <div style="color: #848e9c;">XAU/USD (GOLD)</div>
+        <div>XAU/USD (VÀNG EXNESS)</div>
         <div id="goldPrice" class="price">--</div>
         <div id="goldRsi" class="rsi">RSI: --</div>
-        <input type="number" id="exGold" step="0.01" placeholder="Giá Vàng Exness...">
+        <input type="number" id="exGold" step="0.01" placeholder="Nhập giá Vàng Exness hiện tại...">
     </div>
 
     <div class="box">
-        <div style="color: #848e9c;">BTC/USD</div>
+        <div>BTC/USD (BTC EXNESS)</div>
         <div id="btcPrice" class="price">--</div>
-        <div id="btcRsi" class="rsi">RSI: --</div>
-        <input type="number" id="exBtc" step="0.01" placeholder="Giá BTC Exness...">
+        <div id="btclRsi" class="rsi">RSI: --</div>
+        <input type="number" id="exBtc" step="0.01" placeholder="Nhập giá BTC Exness hiện tại...">
     </div>
 
-    <button onclick="startAll()">KÍCH HOẠT SONG MÃ</button>
-    <div id="status" style="margin-top: 15px; font-size: 12px; color: #848e9c;">Đang chờ bro...</div>
+    <button onclick="activate()">KÍCH HOẠT HỆ THỐNG</button>
+    <div id="status">Trạng thái: Đang đợi bro...</div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-        let goldOffset = 0, btcOffset = 0;
-        let lastActionGold = "", lastActionBtc = "";
+        let gOff = 0, bOff = 0;
+        let lastG = "", lastB = "";
 
-        async function startAll() {
-            const gVal = parseFloat(document.getElementById('exGold').value);
-            const bVal = parseFloat(document.getElementById('exBtc').value);
+        async function activate() {
+            const gV = parseFloat(document.getElementById('exGold').value) || 0;
+            const bV = parseFloat(document.getElementById('exBtc').value) || 0;
             
-            // Sync Gold
-            const rg = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
-            const dg = await rg.json();
-            goldOffset = gVal - parseFloat(dg.price);
+            // Sync giá thực tế
+            const [rg, rb] = await Promise.all([
+                fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT').then(r => r.json()),
+                fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r => r.json())
+            ]);
+            
+            gOff = gV ? gV - parseFloat(rg.price) : 0;
+            bOff = bV ? bV - parseFloat(rb.price) : 0;
 
-            // Sync BTC
-            const rb = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
-            const db = await rb.json();
-            btcOffset = bVal - parseFloat(db.price);
-
-            document.getElementById('status').innerText = "✅ ĐÃ KÍCH HOẠT CẢ VÀNG & BTC";
-            sendTele("🚀 HỆ THỐNG ĐÃ CHẠY!\n💰 Vàng & BTC đang được quét...");
-            setInterval(updateAll, 5000); // Quét mỗi 5s
+            document.getElementById('status').innerText = "🚀 BOT ĐANG QUÉT CẢ VÀNG & BTC...";
+            sendTele("🎯 HỆ THỐNG ĐÃ KÍCH HOẠT!\n💎 Chờ kèo Vàng & BTC có SL/TP...");
+            setInterval(scan, 3000); // Tăng tốc độ quét lên 3 giây/lần
         }
 
-        async function updateAll() {
-            // Logic quét Vàng
-            const goldData = await getRSI('PAXGUSDT');
-            processSignal("GOLD", goldData.rsi, goldData.last + goldOffset, 63, 37, 0.003, 0.007);
+        async function scan() {
+            // Quét Vàng
+            const gData = await getRSI('PAXGUSDT');
+            handleSignal("GOLD", gData.rsi, gData.last + gOff, 65, 35, 2, 5); // SL 2 giá, TP 5 giá cho Vàng
 
-            // Logic quét BTC
-            const btcData = await getRSI('BTCUSDT');
-            processSignal("BTC", btcData.rsi, btcData.last + btcOffset, 65, 35, 0.005, 0.010);
+            // Quét BTC
+            const bData = await getRSI('BTCUSDT');
+            handleSignal("BTC", bData.rsi, bData.last + bOff, 65, 35, 400, 800); // SL 400 giá, TP 800 giá cho BTC
         }
 
-        async function getRSI(symbol) {
-            const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=30`);
+        async function getRSI(s) {
+            const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${s}&interval=1m&limit=30`);
             const d = await r.json();
             const p = d.map(x => parseFloat(x[4]));
             let g = 0, l = 0;
@@ -78,30 +78,27 @@
             return { rsi: 100 - (100 / (1 + (g / l))), last: p[p.length - 1] };
         }
 
-        function processSignal(name, rsi, price, high, low, slPct, tpPct) {
-            document.getElementById(name.toLowerCase() + 'Price').innerText = price.toFixed(2);
-            document.getElementById(name.toLowerCase() + 'Rsi').innerText = "RSI: " + rsi.toFixed(2);
+        function handleSignal(name, rsi, price, hi, lo, slDist, tpDist) {
+            const rsiElem = name === "GOLD" ? "goldRsi" : "btclRsi";
+            const prElem = name === "GOLD" ? "goldPrice" : "btcPrice";
+            document.getElementById(prElem).innerText = price.toFixed(2);
+            document.getElementById(rsiElem).innerText = "RSI: " + rsi.toFixed(2);
 
-            let action = "";
-            if (rsi >= high) action = "SELL";
-            else if (rsi <= low) action = "BUY";
+            let side = "";
+            if (rsi >= hi) side = "SELL";
+            else if (rsi <= lo) side = "BUY";
 
-            let lastVar = name === "GOLD" ? lastActionGold : lastActionBtc;
+            let last = name === "GOLD" ? lastG : lastB;
 
-            if (action !== "" && action !== lastVar) {
-                const sl = action === "SELL" ? price * (1 + slPct) : price * (1 - slPct);
-                const tp = action === "SELL" ? price * (1 - tpPct) : price * (1 + tpPct);
+            if (side !== "" && side !== last) {
+                const sl = side === "SELL" ? price + slDist : price - slDist;
+                const tp = side === "SELL" ? price - tpDist : price + tpDist;
                 
-                let m = `🔔 [KÈO ${name} ${action}]\n`;
-                m += `📍 Entry: ${price.toFixed(2)}\n`;
-                m += `🚫 SL: ${sl.toFixed(2)}\n`;
-                m += `✅ TP: ${tp.toFixed(2)}\n`;
-                m += `📊 RSI: ${rsi.toFixed(2)}`;
-                
+                let m = `🔔 [KÈO ${name} ${side}]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`;
                 sendTele(m);
-                if (name === "GOLD") lastActionGold = action; else lastActionBtc = action;
+                if (name === "GOLD") lastG = side; else lastB = side;
             } else if (rsi > 45 && rsi < 55) {
-                if (name === "GOLD") lastActionGold = ""; else lastActionBtc = "";
+                if (name === "GOLD") lastG = ""; else lastB = "";
             }
         }
 
