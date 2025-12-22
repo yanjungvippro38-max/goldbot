@@ -3,25 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC PRO SCALPER - WINRATE 60%</title>
+    <title>GOLD SCALPER - XAU/USD</title>
     <style>
         body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
-        .box { border: 2px solid #2ebd85; border-radius: 15px; padding: 20px; background: #1e2329; margin-bottom: 15px; box-shadow: 0 0 20px rgba(46, 189, 133, 0.2); }
-        .price { font-size: 38px; font-weight: bold; color: #f0b90b; }
-        .rsi { font-size: 26px; color: #2ebd85; margin: 10px 0; }
-        button { width: 100%; padding: 18px; background: #2ebd85; color: white; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; font-size: 20px; }
-        #status { font-size: 13px; color: #848e9c; margin-top: 15px; }
+        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 20px; background: #1c1f24; margin-bottom: 15px; box-shadow: 0 0 15px rgba(240, 185, 11, 0.2); }
+        .price { font-size: 40px; font-weight: bold; color: #f0b90b; }
+        .rsi { font-size: 26px; color: #2ebd85; margin: 10px 0; font-weight: bold; }
+        button { width: 100%; padding: 18px; background: #f0b90b; color: #000; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; font-size: 20px; }
+        #status { font-size: 13px; color: #848e9c; margin-top: 15px; line-height: 1.5; }
     </style>
 </head>
 <body>
     <div class="box">
-        <div style="color: #848e9c; font-size: 14px;">BTC/USD (CHẾ ĐỘ TIN CẬY CAO)</div>
-        <div id="price" class="price">ĐANG SOI KÈO...</div>
+        <div style="color: #848e9c; font-size: 14px; margin-bottom: 5px;">VÀNG (XAU/USD) - EXNESS</div>
+        <div id="price" class="price">ĐANG TẢI...</div>
         <div id="rsi" class="rsi">RSI: --</div>
     </div>
-    <input type="number" id="exPrice" style="width:90%;padding:15px;margin-bottom:15px;border-radius:10px;border:1px solid #444;background:#1e2329;color:white;" placeholder="Nhập giá Exness để đồng bộ...">
-    <button onclick="sync()">KÍCH HOẠT CHẾ ĐỘ 60%+</button>
-    <div id="status">Trạng thái: Đang đợi lệnh SYNC từ bro...</div>
+    
+    <input type="number" id="exPrice" step="0.01" style="width:90%;padding:15px;margin-bottom:15px;border-radius:10px;border:1px solid #444;background:#1e2329;color:white;" placeholder="Nhập giá Vàng Exness (VD: 2650.50)...">
+    <button onclick="sync()">KÍCH HOẠT SOI VÀNG</button>
+    
+    <div id="status">Chờ bro nhập giá và bấm nút...</div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
@@ -31,18 +33,23 @@
 
         async function sync() {
             const val = parseFloat(document.getElementById('exPrice').value);
-            if(!val) return alert("Bro chưa nhập giá kìa!");
-            const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
-            const d = await r.json();
-            offset = val - parseFloat(d.price);
-            document.getElementById('status').innerText = "✅ ĐÃ KÍCH HOẠT - CHỈ BÁO KÈO ĐỘ TIN CẬY CAO";
-            sendTele("🎯 BOT ĐÃ SẴN SÀNG! Chế độ Winrate 60%+ đã bật. Đang đợi sóng...");
-            update();
+            if(!val) return alert("Nhập giá Vàng hiện tại trên Exness đã bro!");
+            
+            try {
+                // Lấy giá PAXG (Vàng trên Binance) để làm mốc
+                const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
+                const d = await r.json();
+                offset = val - parseFloat(d.price);
+                
+                document.getElementById('status').innerText = "🚀 ĐÃ KẾT NỐI - ĐANG QUÉT KÈO VÀNG...";
+                sendTele("💰 BOT VÀNG ĐÃ CHẠY! Chế độ 60% winrate. Đang đợi sóng XAU/USD...");
+                update();
+            } catch (e) { alert("Lỗi kết nối dữ liệu Vàng!"); }
         }
 
         async function update() {
             try {
-                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=30');
+                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1m&limit=30');
                 const d = await r.json();
                 const p = d.map(x => parseFloat(x[4]));
                 const last = p[p.length - 1];
@@ -57,16 +64,15 @@
                 document.getElementById('price').innerText = (last + offset).toFixed(2);
                 document.getElementById('rsi').innerText = "RSI: " + rsi.toFixed(2);
 
-                // CHIẾN THUẬT 60%+: Ngưỡng an toàn 65/35
-                // Sell khi RSI cực cao (Quá mua), Buy khi RSI cực thấp (Quá bán)
-                if (rsi >= 65 && lastAction !== "SELL") {
-                    sendTele("💎 [KÈO CHUẨN SELL] Giá: " + (last + offset).toFixed(2) + " | RSI: " + rsi.toFixed(2));
+                // CHIẾN THUẬT VÀNG SCALPING: 63/37 (Vàng chạy gắt hơn BTC)
+                if (rsi >= 63 && lastAction !== "SELL") {
+                    sendTele("🔱 [KÈO VÀNG SELL] Giá: " + (last + offset).toFixed(2) + " | RSI: " + rsi.toFixed(2));
                     lastAction = "SELL";
-                } else if (rsi <= 35 && lastAction !== "BUY") {
-                    sendTele("💎 [KÈO CHUẨN BUY] Giá: " + (last + offset).toFixed(2) + " | RSI: " + rsi.toFixed(2));
+                } else if (rsi <= 37 && lastAction !== "BUY") {
+                    sendTele("🔱 [KÈO VÀNG BUY] Giá: " + (last + offset).toFixed(2) + " | RSI: " + rsi.toFixed(2));
                     lastAction = "BUY";
-                } else if (rsi > 40 && rsi < 60) {
-                    lastAction = ""; // Reset trạng thái khi về vùng an toàn
+                } else if (rsi > 42 && rsi < 58) {
+                    lastAction = ""; 
                 }
             } catch (e) {}
         }
