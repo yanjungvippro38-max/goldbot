@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOLD RECOVERY BOT</title>
+    <title>GOLD RECOVERY 44xx PRO</title>
     <style>
-        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 20px; background: #1c1f24; margin-bottom: 20px; }
-        .price { font-size: 42px; font-weight: bold; color: #f0b90b; }
-        .rsi { font-size: 24px; color: #2ebd85; margin: 10px 0; }
-        input { width: 90%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #444; background: #1e2329; color: white; font-size: 18px; }
+        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
+        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 25px; background: #1c1f24; margin-bottom: 20px; box-shadow: 0 0 20px rgba(240, 185, 11, 0.3); }
+        .price { font-size: 48px; font-weight: bold; color: #f0b90b; }
+        .rsi { font-size: 26px; color: #2ebd85; margin: 10px 0; font-weight: bold; }
+        input { width: 90%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #444; background: #1e2329; color: white; font-size: 18px; text-align: center; }
         button { width: 100%; padding: 18px; background: #f0b90b; color: black; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; font-size: 20px; }
+        #status { margin-top: 15px; color: #848e9c; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="box">
-        <div style="color: #848e9c; font-size: 16px;">VÀNG (XAU/USD) - EXNESS</div>
-        <div id="price" class="price">ĐANG TẢI...</div>
+        <div style="color: #f0b90b; font-size: 18px; font-weight: bold; margin-bottom: 10px;">VÀNG (XAU/USD) - EXNESS 44xx</div>
+        <div id="price" class="price">0.00</div>
         <div id="rsi" class="rsi">RSI: --</div>
     </div>
 
-    <input type="number" id="exPrice" step="0.01" placeholder="Nhập giá Vàng Exness hiện tại...">
-    <button onclick="startBot()">KÍCH HOẠT SOI VÀNG</button>
-    <div id="status" style="margin-top: 15px; color: #848e9c;">Trạng thái: Đang đợi bro nhập giá...</div>
+    <input type="number" id="exPrice" step="0.01" placeholder="Nhập giá Exness (VD: 4413.00)...">
+    <button onclick="startBot()">KÍCH HOẠT HỆ THỐNG</button>
+    <div id="status">Chờ bro nhập giá 44xx để đồng bộ...</div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
@@ -32,24 +33,29 @@
 
         async function startBot() {
             const val = parseFloat(document.getElementById('exPrice').value);
-            if(!val) return alert("Nhập giá Vàng đã bro!");
+            if(!val) return alert("Bro nhập giá 4413 hiện tại trên Exness đã!");
             
-            const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
-            const d = await r.json();
-            offset = val - parseFloat(d.price);
-            
-            document.getElementById('status').innerText = "✅ ĐÃ KẾT NỐI - ĐANG QUÉT VÀNG M1...";
-            sendTele("💰 BOT VÀNG ĐÃ CHẠY!\nĐang canh vùng RSI 65/35 cho bro...");
-            setInterval(update, 4000); 
+            try {
+                // Đồng bộ hóa dựa trên giá PAXG Binance
+                const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
+                const d = await r.json();
+                offset = val - parseFloat(d.price);
+                
+                document.getElementById('status').innerText = "🚀 ĐÃ KẾT NỐI - ĐANG QUÉT KÈO VÀNG...";
+                sendTele("🔱 [HỆ THỐNG FULL] ĐÃ KÍCH HOẠT!\n🎯 Mục tiêu: Recovery $23\n📊 Chiến thuật: RSI 65/35 | SL 5 - TP 10");
+                setInterval(update, 3000); // Quét mỗi 3s
+            } catch (e) { alert("Lỗi kết nối API!"); }
         }
 
         async function update() {
             try {
+                // Quét dữ liệu nến 1 phút
                 const r = await fetch('https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1m&limit=30');
                 const d = await r.json();
                 const p = d.map(x => parseFloat(x[4]));
-                const lastPrice = p[p.length - 1] + offset;
+                const currentPrice = p[p.length - 1] + offset;
 
+                // Tính toán RSI 14 phiên
                 let g = 0, l = 0;
                 for (let i = p.length - 14; i < p.length; i++) {
                     let diff = p[i] - p[i-1];
@@ -57,20 +63,24 @@
                 }
                 const rsi = 100 - (100 / (1 + (g / l)));
 
-                document.getElementById('price').innerText = lastPrice.toFixed(2);
+                document.getElementById('price').innerText = currentPrice.toFixed(2);
                 document.getElementById('rsi').innerText = "RSI: " + rsi.toFixed(2);
 
+                // LOGIC BÁO KÈO VỚI TP/SL TỐI ƯU CHO GIÁ 44xx
                 if (rsi >= 65 && lastAction !== "SELL") {
-                    const sl = (lastPrice + 3).toFixed(2);
-                    const tp = (lastPrice - 6).toFixed(2);
-                    sendTele(`🔱 [KÈO VÀNG SELL]\n📍 Entry: ${lastPrice.toFixed(2)}\n🚫 SL: ${sl}\n✅ TP: ${tp}\n📊 RSI: ${rsi.toFixed(2)}`);
+                    const sl = (currentPrice + 5.0).toFixed(2); // Cắt lỗ 5 giá
+                    const tp = (currentPrice - 10.0).toFixed(2); // Chốt lời 10 giá
+                    sendTele(`🔔 [KÈO VÀNG SELL]\n📍 Entry: ${currentPrice.toFixed(2)}\n🚫 SL: ${sl}\n✅ TP: ${tp}\n📊 RSI: ${rsi.toFixed(2)}`);
                     lastAction = "SELL";
-                } else if (rsi <= 35 && lastAction !== "BUY") {
-                    const sl = (lastPrice - 3).toFixed(2);
-                    const tp = (lastPrice + 6).toFixed(2);
-                    sendTele(`🔱 [KÈO VÀNG BUY]\n📍 Entry: ${lastPrice.toFixed(2)}\n🚫 SL: ${sl}\n✅ TP: ${tp}\n📊 RSI: ${rsi.toFixed(2)}`);
+                } 
+                else if (rsi <= 35 && lastAction !== "BUY") {
+                    const sl = (currentPrice - 5.0).toFixed(2);
+                    const tp = (currentPrice + 10.0).toFixed(2);
+                    sendTele(`🔔 [KÈO VÀNG BUY]\n📍 Entry: ${currentPrice.toFixed(2)}\n🚫 SL: ${sl}\n✅ TP: ${tp}\n📊 RSI: ${rsi.toFixed(2)}`);
                     lastAction = "BUY";
-                } else if (rsi > 45 && rsi < 55) {
+                } 
+                // Reset trạng thái khi RSI về vùng trung tính
+                else if (rsi > 45 && rsi < 55) {
                     lastAction = "";
                 }
             } catch (e) {}
