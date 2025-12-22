@@ -3,84 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOLD SCALPER - XAU/USD</title>
+    <title>GOLD & BTC SCALPER</title>
     <style>
         body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
-        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 20px; background: #1c1f24; margin-bottom: 15px; box-shadow: 0 0 15px rgba(240, 185, 11, 0.2); }
-        .price { font-size: 40px; font-weight: bold; color: #f0b90b; }
-        .rsi { font-size: 26px; color: #2ebd85; margin: 10px 0; font-weight: bold; }
-        button { width: 100%; padding: 18px; background: #f0b90b; color: #000; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; font-size: 20px; }
-        #status { font-size: 13px; color: #848e9c; margin-top: 15px; line-height: 1.5; }
+        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 15px; background: #1c1f24; margin-bottom: 15px; }
+        .price { font-size: 30px; font-weight: bold; color: #f0b90b; }
+        .rsi { font-size: 20px; color: #2ebd85; margin: 5px 0; }
+        input { width: 80%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #1e2329; color: white; }
+        button { width: 90%; padding: 15px; background: #f0b90b; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="box">
-        <div style="color: #848e9c; font-size: 14px; margin-bottom: 5px;">VÀNG (XAU/USD) - EXNESS</div>
-        <div id="price" class="price">ĐANG TẢI...</div>
-        <div id="rsi" class="rsi">RSI: --</div>
+        <div style="color: #848e9c;">XAU/USD (GOLD)</div>
+        <div id="goldPrice" class="price">--</div>
+        <div id="goldRsi" class="rsi">RSI: --</div>
+        <input type="number" id="exGold" step="0.01" placeholder="Giá Vàng Exness...">
     </div>
-    
-    <input type="number" id="exPrice" step="0.01" style="width:90%;padding:15px;margin-bottom:15px;border-radius:10px;border:1px solid #444;background:#1e2329;color:white;" placeholder="Nhập giá Vàng Exness (VD: 2650.50)...">
-    <button onclick="sync()">KÍCH HOẠT SOI VÀNG</button>
-    
-    <div id="status">Chờ bro nhập giá và bấm nút...</div>
+
+    <div class="box">
+        <div style="color: #848e9c;">BTC/USD</div>
+        <div id="btcPrice" class="price">--</div>
+        <div id="btcRsi" class="rsi">RSI: --</div>
+        <input type="number" id="exBtc" step="0.01" placeholder="Giá BTC Exness...">
+    </div>
+
+    <button onclick="startAll()">KÍCH HOẠT SONG MÃ</button>
+    <div id="status" style="margin-top: 15px; font-size: 12px; color: #848e9c;">Đang chờ bro...</div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-        let offset = 0;
-        let lastAction = ""; 
+        let goldOffset = 0, btcOffset = 0;
+        let lastActionGold = "", lastActionBtc = "";
 
-        async function sync() {
-            const val = parseFloat(document.getElementById('exPrice').value);
-            if(!val) return alert("Nhập giá Vàng hiện tại trên Exness đã bro!");
+        async function startAll() {
+            const gVal = parseFloat(document.getElementById('exGold').value);
+            const bVal = parseFloat(document.getElementById('exBtc').value);
             
-            try {
-                // Lấy giá PAXG (Vàng trên Binance) để làm mốc
-                const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
-                const d = await r.json();
-                offset = val - parseFloat(d.price);
-                
-                document.getElementById('status').innerText = "🚀 ĐÃ KẾT NỐI - ĐANG QUÉT KÈO VÀNG...";
-                sendTele("💰 BOT VÀNG ĐÃ CHẠY! Chế độ 60% winrate. Đang đợi sóng XAU/USD...");
-                update();
-            } catch (e) { alert("Lỗi kết nối dữ liệu Vàng!"); }
+            // Sync Gold
+            const rg = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
+            const dg = await rg.json();
+            goldOffset = gVal - parseFloat(dg.price);
+
+            // Sync BTC
+            const rb = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
+            const db = await rb.json();
+            btcOffset = bVal - parseFloat(db.price);
+
+            document.getElementById('status').innerText = "✅ ĐÃ KÍCH HOẠT CẢ VÀNG & BTC";
+            sendTele("🚀 HỆ THỐNG ĐÃ CHẠY!\n💰 Vàng & BTC đang được quét...");
+            setInterval(updateAll, 5000); // Quét mỗi 5s
         }
 
-        async function update() {
-            try {
-                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1m&limit=30');
-                const d = await r.json();
-                const p = d.map(x => parseFloat(x[4]));
-                const last = p[p.length - 1];
+        async function updateAll() {
+            // Logic quét Vàng
+            const goldData = await getRSI('PAXGUSDT');
+            processSignal("GOLD", goldData.rsi, goldData.last + goldOffset, 63, 37, 0.003, 0.007);
 
-                let g = 0, l = 0;
-                for (let i = p.length - 14; i < p.length; i++) {
-                    let diff = p[i] - p[i-1];
-                    if (diff >= 0) g += diff; else l -= diff;
-                }
-                const rsi = 100 - (100 / (1 + (g / l)));
+            // Logic quét BTC
+            const btcData = await getRSI('BTCUSDT');
+            processSignal("BTC", btcData.rsi, btcData.last + btcOffset, 65, 35, 0.005, 0.010);
+        }
 
-                document.getElementById('price').innerText = (last + offset).toFixed(2);
-                document.getElementById('rsi').innerText = "RSI: " + rsi.toFixed(2);
+        async function getRSI(symbol) {
+            const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=30`);
+            const d = await r.json();
+            const p = d.map(x => parseFloat(x[4]));
+            let g = 0, l = 0;
+            for (let i = p.length - 14; i < p.length; i++) {
+                let diff = p[i] - p[i-1];
+                if (diff >= 0) g += diff; else l -= diff;
+            }
+            return { rsi: 100 - (100 / (1 + (g / l))), last: p[p.length - 1] };
+        }
 
-                // CHIẾN THUẬT VÀNG SCALPING: 63/37 (Vàng chạy gắt hơn BTC)
-                if (rsi >= 63 && lastAction !== "SELL") {
-                    sendTele("🔱 [KÈO VÀNG SELL] Giá: " + (last + offset).toFixed(2) + " | RSI: " + rsi.toFixed(2));
-                    lastAction = "SELL";
-                } else if (rsi <= 37 && lastAction !== "BUY") {
-                    sendTele("🔱 [KÈO VÀNG BUY] Giá: " + (last + offset).toFixed(2) + " | RSI: " + rsi.toFixed(2));
-                    lastAction = "BUY";
-                } else if (rsi > 42 && rsi < 58) {
-                    lastAction = ""; 
-                }
-            } catch (e) {}
+        function processSignal(name, rsi, price, high, low, slPct, tpPct) {
+            document.getElementById(name.toLowerCase() + 'Price').innerText = price.toFixed(2);
+            document.getElementById(name.toLowerCase() + 'Rsi').innerText = "RSI: " + rsi.toFixed(2);
+
+            let action = "";
+            if (rsi >= high) action = "SELL";
+            else if (rsi <= low) action = "BUY";
+
+            let lastVar = name === "GOLD" ? lastActionGold : lastActionBtc;
+
+            if (action !== "" && action !== lastVar) {
+                const sl = action === "SELL" ? price * (1 + slPct) : price * (1 - slPct);
+                const tp = action === "SELL" ? price * (1 - tpPct) : price * (1 + tpPct);
+                
+                let m = `🔔 [KÈO ${name} ${action}]\n`;
+                m += `📍 Entry: ${price.toFixed(2)}\n`;
+                m += `🚫 SL: ${sl.toFixed(2)}\n`;
+                m += `✅ TP: ${tp.toFixed(2)}\n`;
+                m += `📊 RSI: ${rsi.toFixed(2)}`;
+                
+                sendTele(m);
+                if (name === "GOLD") lastActionGold = action; else lastActionBtc = action;
+            } else if (rsi > 45 && rsi < 55) {
+                if (name === "GOLD") lastActionGold = ""; else lastActionBtc = "";
+            }
         }
 
         function sendTele(m) {
             fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(m)}`);
         }
-        setInterval(update, 5000); 
     </script>
 </body>
 </html>
