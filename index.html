@@ -3,87 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOLD RECOVERY 44xx PRO</title>
+    <title>GOLD PRO PLANNER</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
-        .box { border: 2px solid #f0b90b; border-radius: 15px; padding: 25px; background: #1c1f24; margin-bottom: 20px; box-shadow: 0 0 20px rgba(240, 185, 11, 0.3); }
-        .price { font-size: 48px; font-weight: bold; color: #f0b90b; }
-        .rsi { font-size: 26px; color: #2ebd85; margin: 10px 0; font-weight: bold; }
-        input { width: 90%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #444; background: #1e2329; color: white; font-size: 18px; text-align: center; }
-        button { width: 100%; padding: 18px; background: #f0b90b; color: black; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; font-size: 20px; }
-        #status { margin-top: 15px; color: #848e9c; font-size: 14px; }
+        body { background: #0b0e11; color: white; font-family: sans-serif; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 500px; }
+        .box { border: 2px solid #f0b90b; border-radius: 12px; padding: 15px; background: #1c1f24; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        #chart { width: 100%; height: 300px; margin-top: 10px; border-radius: 8px; overflow: hidden; }
+        .price { font-size: 36px; font-weight: bold; color: #f0b90b; }
+        .rsi { font-size: 18px; color: #2ebd85; margin: 5px 0; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #1e2329; color: white; box-sizing: border-box; text-align: center; }
+        button { width: 100%; padding: 15px; background: #f0b90b; color: black; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; font-size: 18px; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <div style="color: #f0b90b; font-size: 18px; font-weight: bold; margin-bottom: 10px;">VÀNG (XAU/USD) - EXNESS 44xx</div>
-        <div id="price" class="price">0.00</div>
-        <div id="rsi" class="rsi">RSI: --</div>
-    </div>
+    <div class="container">
+        <div class="box">
+            <div style="color: #848e9c; font-size: 14px;">XAU/USD - EXNESS 44xx</div>
+            <div id="priceDisplay" class="price">0.00</div>
+            <div id="rsiDisplay" class="rsi">RSI: --</div>
+            <div id="chart"></div>
+        </div>
 
-    <input type="number" id="exPrice" step="0.01" placeholder="Nhập giá Exness (VD: 4413.00)...">
-    <button onclick="startBot()">KÍCH HOẠT HỆ THỐNG</button>
-    <div id="status">Chờ bro nhập giá 44xx để đồng bộ...</div>
+        <input type="number" id="exInput" step="0.01" placeholder="Nhập giá Exness (VD: 4413)...">
+        <button onclick="initBot()">KÍCH HOẠT & VẼ PLAN</button>
+    </div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-        let offset = 0;
-        let lastAction = "";
+        let offset = 0, lastAction = "", chart, candleSeries, lineSeries;
 
-        async function startBot() {
-            const val = parseFloat(document.getElementById('exPrice').value);
-            if(!val) return alert("Bro nhập giá 4413 hiện tại trên Exness đã!");
-            
-            try {
-                // Đồng bộ hóa dựa trên giá PAXG Binance
-                const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
-                const d = await r.json();
-                offset = val - parseFloat(d.price);
-                
-                document.getElementById('status').innerText = "🚀 ĐÃ KẾT NỐI - ĐANG QUÉT KÈO VÀNG...";
-                sendTele("🔱 [HỆ THỐNG FULL] ĐÃ KÍCH HOẠT!\n🎯 Mục tiêu: Recovery $23\n📊 Chiến thuật: RSI 65/35 | SL 5 - TP 10");
-                setInterval(update, 3000); // Quét mỗi 3s
-            } catch (e) { alert("Lỗi kết nối API!"); }
+        // Khởi tạo Chart
+        function createChart() {
+            chart = LightweightCharts.createChart(document.getElementById('chart'), {
+                layout: { backgroundColor: '#1c1f24', textColor: '#d1d4dc' },
+                grid: { vertLines: { color: '#2b2b2b' }, horzLines: { color: '#2b2b2b' } },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                timeScale: { timeVisible: true, secondsVisible: false }
+            });
+            candleSeries = chart.addCandlestickSeries();
+            lineSeries = chart.addLineSeries({ color: '#2196F3', lineWidth: 2 }); // Đường Trend EMA
         }
 
-        async function update() {
+        async function initBot() {
+            const val = parseFloat(document.getElementById('exInput').value);
+            if(!val) return alert("Nhập giá đã bro!");
+            const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
+            const d = await r.json();
+            offset = val - parseFloat(d.price);
+            if(!chart) createChart();
+            setInterval(updateData, 3000); // Quét mỗi 3s
+            sendTele("🎨 BOT VẼ PLAN ĐÃ CHẠY!\nPlan: SL 10 - TP 20 trực quan.");
+        }
+
+        async function updateData() {
             try {
-                // Quét dữ liệu nến 1 phút
-                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1m&limit=30');
+                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1m&limit=100');
                 const d = await r.json();
-                const p = d.map(x => parseFloat(x[4]));
-                const currentPrice = p[p.length - 1] + offset;
+                const candles = d.map(x => ({
+                    time: x[0] / 1000,
+                    open: parseFloat(x[1]) + offset,
+                    high: parseFloat(x[2]) + offset,
+                    low: parseFloat(x[3]) + offset,
+                    close: parseFloat(x[4]) + offset
+                }));
+                
+                candleSeries.setData(candles);
+                const current = candles[candles.length - 1];
+                document.getElementById('priceDisplay').innerText = current.close.toFixed(2);
 
-                // Tính toán RSI 14 phiên
-                let g = 0, l = 0;
-                for (let i = p.length - 14; i < p.length; i++) {
-                    let diff = p[i] - p[i-1];
-                    if (diff >= 0) g += diff; else l -= diff;
-                }
-                const rsi = 100 - (100 / (1 + (g / l)));
+                // Tính RSI & EMA
+                const prices = candles.map(c => c.close);
+                const rsi = calculateRSI(prices);
+                const ema = prices.slice(-50).reduce((a,b)=>a+b, 0) / 50;
+                
+                document.getElementById('rsiDisplay').innerText = "RSI: " + rsi.toFixed(2);
+                lineSeries.setData(candles.map((c, i) => ({ time: c.time, value: ema })));
 
-                document.getElementById('price').innerText = currentPrice.toFixed(2);
-                document.getElementById('rsi').innerText = "RSI: " + rsi.toFixed(2);
-
-                // LOGIC BÁO KÈO VỚI TP/SL TỐI ƯU CHO GIÁ 44xx
-                if (rsi >= 65 && lastAction !== "SELL") {
-                    const sl = (currentPrice + 5.0).toFixed(2); // Cắt lỗ 5 giá
-                    const tp = (currentPrice - 10.0).toFixed(2); // Chốt lời 10 giá
-                    sendTele(`🔔 [KÈO VÀNG SELL]\n📍 Entry: ${currentPrice.toFixed(2)}\n🚫 SL: ${sl}\n✅ TP: ${tp}\n📊 RSI: ${rsi.toFixed(2)}`);
+                // Logic vẽ Plan 10/20
+                const trend = current.close > ema ? "UP" : "DOWN";
+                if (trend === "DOWN" && rsi >= 65 && lastAction !== "SELL") {
+                    triggerPlan("SELL", current.close, rsi);
                     lastAction = "SELL";
-                } 
-                else if (rsi <= 35 && lastAction !== "BUY") {
-                    const sl = (currentPrice - 5.0).toFixed(2);
-                    const tp = (currentPrice + 10.0).toFixed(2);
-                    sendTele(`🔔 [KÈO VÀNG BUY]\n📍 Entry: ${currentPrice.toFixed(2)}\n🚫 SL: ${sl}\n✅ TP: ${tp}\n📊 RSI: ${rsi.toFixed(2)}`);
+                } else if (trend === "UP" && rsi <= 35 && lastAction !== "BUY") {
+                    triggerPlan("BUY", current.close, rsi);
                     lastAction = "BUY";
-                } 
-                // Reset trạng thái khi RSI về vùng trung tính
-                else if (rsi > 45 && rsi < 55) {
-                    lastAction = "";
-                }
+                } else if (rsi > 45 && rsi < 55) { lastAction = ""; }
             } catch (e) {}
+        }
+
+        function calculateRSI(p) {
+            let g = 0, l = 0;
+            for (let i = p.length - 14; i < p.length; i++) {
+                let diff = p[i] - p[i-1];
+                if (diff >= 0) g += diff; else l -= diff;
+            }
+            return 100 - (100 / (1 + (g / l)));
+        }
+
+        function triggerPlan(side, price, rsi) {
+            const sl = side === "SELL" ? price + 10 : price - 10;
+            const tp = side === "SELL" ? price - 20 : price + 20;
+            
+            // Vẽ Plan lên Chart (Markers)
+            candleSeries.setMarkers([
+                { time: Date.now()/1000, position: side === 'SELL' ? 'aboveBar' : 'belowBar', color: side === 'SELL' ? '#f6465d' : '#2ebd85', shape: 'arrowDown', text: `${side} PLAN: SL ${sl.toFixed(0)} TP ${tp.toFixed(0)}` }
+            ]);
+
+            let m = `🎨 [PLAN ${side} 10/20]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`;
+            fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(m)}`);
         }
 
         function sendTele(m) {
