@@ -3,112 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC EMA-SCALPER</title>
+    <title>BTC MAX VIP BOT</title>
     <style>
         body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 10px; }
-        .card { border: 2px solid #00ff88; border-radius: 12px; padding: 15px; background: #1e2329; }
-        .price { font-size: 42px; font-weight: bold; color: #00ff88; }
-        .ema-info { color: #f3ba2f; font-size: 16px; margin-top: 5px; }
-        .log-box { text-align: left; background: #000; padding: 10px; height: 120px; overflow-y: auto; font-size: 12px; margin-top: 10px; color: #00ff88; border-radius: 5px; border: 1px solid #333; }
-        button { width: 100%; padding: 18px; background: #00ff88; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; cursor: pointer; }
+        .card { border: 2px solid #f3ba2f; border-radius: 15px; padding: 20px; background: #1e2329; box-shadow: 0 0 30px rgba(243, 186, 47, 0.3); }
+        .price { font-size: 45px; font-weight: bold; color: #f3ba2f; }
+        .vip-status { color: #00ff88; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+        .log-box { text-align: left; background: #000; padding: 10px; height: 160px; overflow-y: auto; font-size: 12px; margin-top: 15px; color: #00ff88; border: 1px solid #333; border-radius: 5px; }
+        button { width: 100%; padding: 20px; background: #f3ba2f; color: black; font-weight: bold; border-radius: 12px; border: none; font-size: 22px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="card">
-        <div style="font-size: 12px; color: #848e9c;">MODE: QUICK SCALP + EMA 9</div>
+        <div class="vip-status">💎 CHẾ ĐỘ: MAX VIP - MULTI TARGET</div>
         <div id="btcPrice" class="price">0.00</div>
-        <div id="emaVal" class="ema-info">EMA 9: --</div>
-        <div id="rsiVal" style="font-size: 22px; margin: 10px 0; color: #f3ba2f;">RSI: --</div>
-        <div id="logs" class="log-box">Hệ thống sẵn sàng...</div>
-        <button onclick="startEmaBot()">KÍCH HOẠT HỆ THỐNG</button>
+        <div id="info" style="font-size: 16px; color: #848e9c;">RSI M1: -- | RSI M5: --</div>
+        <div id="logs" class="log-box">Hệ thống Max VIP đang khởi động...</div>
+        <button onclick="startVipBot()">KÍCH HOẠT HỆ THỐNG VIP</button>
     </div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-        let lastAction = "";
-        let lastUpdateId = 0;
+        let lastAction = "", lastUpdateId = 0, isPaused = false;
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
         function addLog(msg) {
             const l = document.getElementById('logs');
-            l.innerHTML += `<br>⚡ ${msg}`;
+            l.innerHTML += `<br>🚀 ${msg}`;
             l.scrollTop = l.scrollHeight;
         }
 
-        async function startEmaBot() {
-            addLog("Đã bật chế độ xác nhận EMA 9...");
-            setInterval(updateData, 2000); // Quét mỗi 2s
-            setInterval(checkTele, 2000);
-            sendTele("🚀 BTC EMA-SCALPER ONLINE!\n🎯 SL 100 - TP 150\n🛡️ Đã thêm EMA 9 để xác nhận điểm vào.");
+        async function startVipBot() {
+            addLog("Đã kích hoạt chế độ MAX VIP!");
+            setInterval(updateVipData, 2000); // Quét giá 2s/lần
+            setInterval(checkTeleCommands, 2000);
+            sendTele("💎 BTC MAX VIP ONLINE!\n📍 Target: SL 100 - TP1: 100, TP2: 250, TP3: 500\n🔊 Đã bật âm thanh cảnh báo.");
         }
 
-        async function updateData() {
+        async function getRsi(interval) {
+            const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=100`);
+            const d = await r.json();
+            const prices = d.map(x => parseFloat(x[4]));
+            let g = 0, l = 0;
+            for (let i = prices.length - 14; i < prices.length; i++) {
+                let diff = prices[i] - prices[i-1];
+                if (diff >= 0) g += diff; else l -= diff;
+            }
+            return { rsi: 100 - (100 / (1 + (g / l))), price: prices[prices.length - 1] };
+        }
+
+        async function updateVipData() {
+            if (isPaused) return;
             try {
-                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100');
-                const d = await r.json();
-                const prices = d.map(x => parseFloat(x[4]));
-                const current = prices[prices.length - 1];
+                const m1 = await getRsi('1m');
+                const m5 = await getRsi('5m');
+                
+                document.getElementById('btcPrice').innerText = m1.price.toFixed(2);
+                document.getElementById('info').innerText = `RSI M1: ${m1.rsi.toFixed(2)} | RSI M5: ${m5.rsi.toFixed(2)}`;
 
-                // 1. Tính EMA 9
-                const k = 2 / (9 + 1);
-                let ema9 = prices[0];
-                for (let i = 1; i < prices.length; i++) {
-                    ema9 = (prices[i] * k) + (ema9 * (1 - k));
-                }
-
-                // 2. Tính RSI 14
-                let g = 0, l = 0;
-                for (let i = prices.length - 14; i < prices.length; i++) {
-                    let diff = prices[i] - prices[i-1];
-                    if (diff >= 0) g += diff; else l -= diff;
-                }
-                const rsi = 100 - (100 / (1 + (g / l)));
-
-                document.getElementById('btcPrice').innerText = current.toFixed(2);
-                document.getElementById('emaVal').innerText = "EMA 9: " + ema9.toFixed(2);
-                document.getElementById('rsiVal').innerText = "RSI: " + rsi.toFixed(2);
-
-                // 3. Logic Ép Lệnh + Xác nhận EMA
-                // BUY: RSI thấp + Giá bắt đầu vượt lên trên EMA 9
-                if (rsi <= 42 && current > ema9 && lastAction !== "BUY") {
-                    sendSignal("BUY", current, rsi);
+                // Logic VIP: RSI M1 chạm ngưỡng + Đồng thuận hướng M5 (hoặc M5 quá bán/mua)
+                if (m1.rsi <= 40 && lastAction !== "BUY") {
+                    triggerVipSignal("BUY", m1.price, m1.rsi, m5.rsi);
                     lastAction = "BUY";
-                } 
-                // SELL: RSI cao + Giá bắt đầu rớt xuống dưới EMA 9
-                else if (rsi >= 58 && current < ema9 && lastAction !== "SELL") {
-                    sendSignal("SELL", current, rsi);
+                } else if (m1.rsi >= 60 && lastAction !== "SELL") {
+                    triggerVipSignal("SELL", m1.price, m1.rsi, m5.rsi);
                     lastAction = "SELL";
                 }
             } catch (e) {}
         }
 
-        async function checkTele() {
+        function triggerVipSignal(side, price, rsi1, rsi5) {
+            audio.play(); // Phát tiếng Ting Ting
+            const sl = side === "SELL" ? price + 100 : price - 100;
+            const tp1 = side === "SELL" ? price - 100 : price + 100;
+            const tp2 = side === "SELL" ? price - 250 : price + 250;
+            const tp3 = side === "SELL" ? price - 500 : price + 500;
+            
+            let m = `💎 [KÈO MAX VIP ${side}]\n📍 Entry: ${price}\n🚫 SL: ${sl.toFixed(2)}\n\n🎯 TP1: ${tp1.toFixed(2)} (Dời SL về Entry)\n🎯 TP2: ${tp2.toFixed(2)}\n🎯 TP3: ${tp3.toFixed(2)}\n\n📊 RSI M1: ${rsi1.toFixed(2)} | M5: ${rsi5.toFixed(2)}`;
+            sendTele(m);
+            addLog(`Đã nổ kèo VIP ${side} tại ${price}`);
+        }
+
+        async function checkTeleCommands() {
             try {
                 const r = await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
                 const d = await r.json();
-                if (d.result) {
-                    for (let u of d.result) {
-                        lastUpdateId = u.update_id;
-                        const m = u.message.text.toLowerCase();
-                        if (m === "/tp" || m === "/sl") {
-                            lastAction = "";
-                            addLog("Đã Reset trạng thái theo lệnh Tele.");
-                        }
-                    }
+                if (!d.result) return;
+                for (let u of d.result) {
+                    lastUpdateId = u.update_id;
+                    const msg = u.message.text.toLowerCase();
+                    if (msg === "/tp" || msg === "/sl") { lastAction = ""; sendTele("✅ Đã sẵn sàng săn kèo VIP mới!"); }
+                    if (msg === "/check") sendTele(`💎 VIP CHECK:\nGiá: ${document.getElementById('btcPrice').innerText}\n${document.getElementById('info').innerText}`);
                 }
             } catch (e) {}
         }
 
-        function sendSignal(side, price, rsi) {
-            const sl = side === "SELL" ? price + 100 : price - 100;
-            const tp = side === "SELL" ? price - 150 : price + 150;
-            sendTele(`⚡ [KÈO EMA ${side}]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`);
-            addLog(`Báo kèo ${side} tại ${price}`);
-        }
-
-        function sendTele(m) {
-            fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(m)}`);
-        }
+        function sendTele(m) { fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(m)}`); }
     </script>
 </body>
 </html>
