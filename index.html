@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC AGGRESSIVE BOT</title>
+    <title>BTC EMA-SCALPER</title>
     <style>
-        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .card { border: 2px solid #f3ba2f; border-radius: 15px; padding: 20px; background: #1e2329; border-left: 10px solid #f3ba2f; }
-        .btc-price { font-size: 45px; font-weight: bold; color: #f3ba2f; margin: 10px 0; }
-        .log-window { text-align: left; background: #000; padding: 10px; height: 120px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 15px; color: #2ebd85; border-radius: 5px; }
-        button { width: 100%; padding: 18px; background: #f3ba2f; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; cursor: pointer; }
-        .alert-mode { color: #f6465d; font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 10px; }
+        .card { border: 2px solid #00ff88; border-radius: 12px; padding: 15px; background: #1e2329; }
+        .price { font-size: 42px; font-weight: bold; color: #00ff88; }
+        .ema-info { color: #f3ba2f; font-size: 16px; margin-top: 5px; }
+        .log-box { text-align: left; background: #000; padding: 10px; height: 120px; overflow-y: auto; font-size: 12px; margin-top: 10px; color: #00ff88; border-radius: 5px; border: 1px solid #333; }
+        button { width: 100%; padding: 18px; background: #00ff88; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="card">
-        <div class="alert-mode">⚠️ CHẾ ĐỘ: ÉP LỆNH (RSI 40/60)</div>
-        <div id="btcPrice" class="btc-price">0.00</div>
-        <div id="rsiVal" style="font-size: 24px; color: #f3ba2f; font-weight: bold;">RSI: --</div>
-        <div id="lastActionDisplay" style="margin-top: 10px; color: #848e9c;">Chế độ: Đánh cả 2 đầu</div>
-        <div id="logs" class="log-window">Hệ thống ép lệnh sẵn sàng...</div>
-        <button onclick="startAggressiveBot()">BẬT CHẾ ĐỘ ÉP LỆNH</button>
+        <div style="font-size: 12px; color: #848e9c;">MODE: QUICK SCALP + EMA 9</div>
+        <div id="btcPrice" class="price">0.00</div>
+        <div id="emaVal" class="ema-info">EMA 9: --</div>
+        <div id="rsiVal" style="font-size: 22px; margin: 10px 0; color: #f3ba2f;">RSI: --</div>
+        <div id="logs" class="log-box">Hệ thống sẵn sàng...</div>
+        <button onclick="startEmaBot()">KÍCH HOẠT HỆ THỐNG</button>
     </div>
 
     <script>
@@ -31,25 +31,32 @@
 
         function addLog(msg) {
             const l = document.getElementById('logs');
-            l.innerHTML += `<br>> ${msg}`;
+            l.innerHTML += `<br>⚡ ${msg}`;
             l.scrollTop = l.scrollHeight;
         }
 
-        async function startAggressiveBot() {
-            addLog("Đã kích hoạt chế độ ÉP LỆNH (RSI 40/60)...");
-            setInterval(updateMarket, 3000); 
-            setInterval(checkTeleCommands, 2000);
-            sendTele("🔥 BOT BTC: ĐÃ BẬT CHẾ ĐỘ ÉP LỆNH!\nKèo sẽ nổ liên tục. Chuẩn bị sẵn lệnh trên sàn!");
+        async function startEmaBot() {
+            addLog("Đã bật chế độ xác nhận EMA 9...");
+            setInterval(updateData, 2000); // Quét mỗi 2s
+            setInterval(checkTele, 2000);
+            sendTele("🚀 BTC EMA-SCALPER ONLINE!\n🎯 SL 100 - TP 150\n🛡️ Đã thêm EMA 9 để xác nhận điểm vào.");
         }
 
-        async function updateMarket() {
+        async function updateData() {
             try {
                 const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100');
                 const d = await r.json();
                 const prices = d.map(x => parseFloat(x[4]));
                 const current = prices[prices.length - 1];
 
-                // Tính RSI
+                // 1. Tính EMA 9
+                const k = 2 / (9 + 1);
+                let ema9 = prices[0];
+                for (let i = 1; i < prices.length; i++) {
+                    ema9 = (prices[i] * k) + (ema9 * (1 - k));
+                }
+
+                // 2. Tính RSI 14
                 let g = 0, l = 0;
                 for (let i = prices.length - 14; i < prices.length; i++) {
                     let diff = prices[i] - prices[i-1];
@@ -58,42 +65,45 @@
                 const rsi = 100 - (100 / (1 + (g / l)));
 
                 document.getElementById('btcPrice').innerText = current.toFixed(2);
+                document.getElementById('emaVal').innerText = "EMA 9: " + ema9.toFixed(2);
                 document.getElementById('rsiVal').innerText = "RSI: " + rsi.toFixed(2);
 
-                // CHẾ ĐỘ ÉP LỆNH: RSI 40/60
-                if (rsi <= 40 && lastAction !== "BUY") {
-                    triggerSignal("BUY", current, rsi);
+                // 3. Logic Ép Lệnh + Xác nhận EMA
+                // BUY: RSI thấp + Giá bắt đầu vượt lên trên EMA 9
+                if (rsi <= 42 && current > ema9 && lastAction !== "BUY") {
+                    sendSignal("BUY", current, rsi);
                     lastAction = "BUY";
-                } else if (rsi >= 60 && lastAction !== "SELL") {
-                    triggerSignal("SELL", current, rsi);
+                } 
+                // SELL: RSI cao + Giá bắt đầu rớt xuống dưới EMA 9
+                else if (rsi >= 58 && current < ema9 && lastAction !== "SELL") {
+                    sendSignal("SELL", current, rsi);
                     lastAction = "SELL";
                 }
             } catch (e) {}
         }
 
-        async function checkTeleCommands() {
+        async function checkTele() {
             try {
                 const r = await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
                 const d = await r.json();
-                if (d.result && d.result.length > 0) {
-                    for (let update of d.result) {
-                        lastUpdateId = update.update_id;
-                        const msg = update.message.text.toLowerCase();
-                        if (msg === "/tp" || msg === "/sl") {
-                            lastAction = ""; 
-                            sendTele(`✅ Đã reset. Đang quét kèo ép lệnh mới...`);
-                            addLog("Đã nhận lệnh reset từ Tele.");
+                if (d.result) {
+                    for (let u of d.result) {
+                        lastUpdateId = u.update_id;
+                        const m = u.message.text.toLowerCase();
+                        if (m === "/tp" || m === "/sl") {
+                            lastAction = "";
+                            addLog("Đã Reset trạng thái theo lệnh Tele.");
                         }
                     }
                 }
             } catch (e) {}
         }
 
-        function triggerSignal(side, price, rsi) {
-            const sl = side === "SELL" ? price + 150 : price - 150;
-            const tp = side === "SELL" ? price - 300 : price + 300;
-            sendTele(`🔥 [KÈO ÉP LỆNH BTC ${side}]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`);
-            addLog(`Đã nổ kèo ép ${side} tại ${price}`);
+        function sendSignal(side, price, rsi) {
+            const sl = side === "SELL" ? price + 100 : price - 100;
+            const tp = side === "SELL" ? price - 150 : price + 150;
+            sendTele(`⚡ [KÈO EMA ${side}]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`);
+            addLog(`Báo kèo ${side} tại ${price}`);
         }
 
         function sendTele(m) {
