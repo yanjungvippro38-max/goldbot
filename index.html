@@ -3,98 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC MAX VIP BOT</title>
+    <title>BTC RECOVERY MAX VIP</title>
     <style>
         body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 10px; }
-        .card { border: 2px solid #f3ba2f; border-radius: 15px; padding: 20px; background: #1e2329; box-shadow: 0 0 30px rgba(243, 186, 47, 0.3); }
-        .price { font-size: 45px; font-weight: bold; color: #f3ba2f; }
-        .vip-status { color: #00ff88; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
-        .log-box { text-align: left; background: #000; padding: 10px; height: 160px; overflow-y: auto; font-size: 12px; margin-top: 15px; color: #00ff88; border: 1px solid #333; border-radius: 5px; }
-        button { width: 100%; padding: 20px; background: #f3ba2f; color: black; font-weight: bold; border-radius: 12px; border: none; font-size: 22px; cursor: pointer; }
+        .card { border: 2px solid #f3ba2f; border-radius: 15px; padding: 15px; background: #1e2329; box-shadow: 0 0 20px rgba(243, 186, 47, 0.2); }
+        .price { font-size: 40px; font-weight: bold; color: #f3ba2f; margin: 10px 0; }
+        .info { font-size: 14px; color: #848e9c; margin-bottom: 10px; }
+        .log-box { text-align: left; background: #000; padding: 10px; height: 140px; overflow-y: auto; font-size: 11px; color: #00ff88; border: 1px solid #333; }
+        button { width: 100%; padding: 18px; background: #f3ba2f; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="card">
-        <div class="vip-status">💎 CHẾ ĐỘ: MAX VIP - MULTI TARGET</div>
+        <div style="font-size: 12px; color: #00ff88; font-weight: bold;">💎 HỆ THỐNG GỠ $23 - MAX VIP</div>
         <div id="btcPrice" class="price">0.00</div>
-        <div id="info" style="font-size: 16px; color: #848e9c;">RSI M1: -- | RSI M5: --</div>
-        <div id="logs" class="log-box">Hệ thống Max VIP đang khởi động...</div>
-        <button onclick="startVipBot()">KÍCH HOẠT HỆ THỐNG VIP</button>
+        <div id="statusInfo" class="info">M1: -- | M5: -- | EMA9: -- | Offset: 0</div>
+        <div id="logs" class="log-box">Đang đợi lệnh...</div>
+        <button onclick="startVipBot()">KÍCH HOẠT HỆ THỐNG</button>
     </div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
         let lastAction = "", lastUpdateId = 0, isPaused = false;
+        let rsiBuy = 40, rsiSell = 60, priceOffset = 0;
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
-        function addLog(msg) {
-            const l = document.getElementById('logs');
-            l.innerHTML += `<br>🚀 ${msg}`;
-            l.scrollTop = l.scrollHeight;
-        }
-
         async function startVipBot() {
-            addLog("Đã kích hoạt chế độ MAX VIP!");
-            setInterval(updateVipData, 2000); // Quét giá 2s/lần
-            setInterval(checkTeleCommands, 2000);
-            sendTele("💎 BTC MAX VIP ONLINE!\n📍 Target: SL 100 - TP1: 100, TP2: 250, TP3: 500\n🔊 Đã bật âm thanh cảnh báo.");
+            setInterval(updateData, 2000); 
+            setInterval(checkTele, 2000);
+            sendTele("🚀 BTC MAX VIP READY!\n/offset [số] : Bù giá Exness\n/setrsi [số] : Đổi độ nhạy\n/check : Xem trạng thái");
         }
 
         async function getRsi(interval) {
-            const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=100`);
-            const d = await r.json();
-            const prices = d.map(x => parseFloat(x[4]));
-            let g = 0, l = 0;
-            for (let i = prices.length - 14; i < prices.length; i++) {
-                let diff = prices[i] - prices[i-1];
-                if (diff >= 0) g += diff; else l -= diff;
-            }
-            return { rsi: 100 - (100 / (1 + (g / l))), price: prices[prices.length - 1] };
-        }
-
-        async function updateVipData() {
-            if (isPaused) return;
             try {
-                const m1 = await getRsi('1m');
-                const m5 = await getRsi('5m');
-                
-                document.getElementById('btcPrice').innerText = m1.price.toFixed(2);
-                document.getElementById('info').innerText = `RSI M1: ${m1.rsi.toFixed(2)} | RSI M5: ${m5.rsi.toFixed(2)}`;
-
-                // Logic VIP: RSI M1 chạm ngưỡng + Đồng thuận hướng M5 (hoặc M5 quá bán/mua)
-                if (m1.rsi <= 40 && lastAction !== "BUY") {
-                    triggerVipSignal("BUY", m1.price, m1.rsi, m5.rsi);
-                    lastAction = "BUY";
-                } else if (m1.rsi >= 60 && lastAction !== "SELL") {
-                    triggerVipSignal("SELL", m1.price, m1.rsi, m5.rsi);
-                    lastAction = "SELL";
+                const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=100`);
+                const d = await r.json();
+                const prices = d.map(x => parseFloat(x[4]));
+                let g = 0, l = 0;
+                for (let i = prices.length - 14; i < prices.length; i++) {
+                    let diff = prices[i] - prices[i-1];
+                    if (diff >= 0) g += diff; else l -= diff;
                 }
-            } catch (e) {}
+                const rsi = 100 - (100 / (1 + (g / l)));
+                return { rsi, price: prices[prices.length - 1], prices };
+            } catch (e) { return null; }
         }
 
-        function triggerVipSignal(side, price, rsi1, rsi5) {
-            audio.play(); // Phát tiếng Ting Ting
-            const sl = side === "SELL" ? price + 100 : price - 100;
-            const tp1 = side === "SELL" ? price - 100 : price + 100;
-            const tp2 = side === "SELL" ? price - 250 : price + 250;
-            const tp3 = side === "SELL" ? price - 500 : price + 500;
+        async function updateData() {
+            if (isPaused) return;
+            const m1 = await getRsi('1m');
+            const m5 = await getRsi('5m');
+            if (!m1 || !m5) return;
+
+            // Tính EMA 9
+            const k = 2 / (9 + 1);
+            let ema9 = m1.prices[0];
+            for (let i = 1; i < m1.prices.length; i++) { ema9 = (m1.prices[i] * k) + (ema9 * (1 - k)); }
+
+            document.getElementById('btcPrice').innerText = (m1.price + priceOffset).toFixed(2);
+            document.getElementById('statusInfo').innerText = `M1: ${m1.rsi.toFixed(2)} | M5: ${m5.rsi.toFixed(2)} | EMA9: ${ema9.toFixed(2)} | Offset: ${priceOffset}`;
+
+            // LOGIC ÉP LỆNH VIP + EMA
+            if (m1.rsi <= rsiBuy && m1.price > ema9 && lastAction !== "BUY") {
+                triggerSignal("BUY", m1.price, m1.rsi, m5.rsi);
+                lastAction = "BUY";
+            } else if (m1.rsi >= rsiSell && m1.price < ema9 && lastAction !== "SELL") {
+                triggerSignal("SELL", m1.price, m1.rsi, m5.rsi);
+                lastAction = "SELL";
+            }
+        }
+
+        function triggerSignal(side, price, r1, r5) {
+            audio.play();
+            const entry = price + priceOffset;
+            const sl = side === "SELL" ? entry + 100 : entry - 100;
+            const tp1 = side === "SELL" ? entry - 100 : entry + 100;
+            const tp2 = side === "SELL" ? entry - 250 : entry + 250;
+            const tp3 = side === "SELL" ? entry - 500 : entry + 500;
             
-            let m = `💎 [KÈO MAX VIP ${side}]\n📍 Entry: ${price}\n🚫 SL: ${sl.toFixed(2)}\n\n🎯 TP1: ${tp1.toFixed(2)} (Dời SL về Entry)\n🎯 TP2: ${tp2.toFixed(2)}\n🎯 TP3: ${tp3.toFixed(2)}\n\n📊 RSI M1: ${rsi1.toFixed(2)} | M5: ${rsi5.toFixed(2)}`;
+            let m = `💎 [KÈO MAX VIP ${side}]\n📍 Entry: ${entry.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n🎯 TP1: ${tp1.toFixed(2)}\n🎯 TP2: ${tp2.toFixed(2)}\n🎯 TP3: ${tp3.toFixed(2)}\n📊 RSI M1: ${r1.toFixed(2)} | M5: ${r5.toFixed(2)}`;
             sendTele(m);
-            addLog(`Đã nổ kèo VIP ${side} tại ${price}`);
+            const l = document.getElementById('logs');
+            l.innerHTML += `<br>> Đã nổ kèo ${side} lúc ${new Date().toLocaleTimeString()}`;
+            l.scrollTop = l.scrollHeight;
         }
 
-        async function checkTeleCommands() {
+        async function checkTele() {
             try {
                 const r = await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
                 const d = await r.json();
                 if (!d.result) return;
                 for (let u of d.result) {
                     lastUpdateId = u.update_id;
-                    const msg = u.message.text.toLowerCase();
-                    if (msg === "/tp" || msg === "/sl") { lastAction = ""; sendTele("✅ Đã sẵn sàng săn kèo VIP mới!"); }
-                    if (msg === "/check") sendTele(`💎 VIP CHECK:\nGiá: ${document.getElementById('btcPrice').innerText}\n${document.getElementById('info').innerText}`);
+                    const m = u.message.text.toLowerCase();
+                    if (m.startsWith("/offset")) {
+                        priceOffset = parseFloat(m.split(" ")[1]) || 0;
+                        sendTele(`✅ Đã bù giá: ${priceOffset}. Giá hiện tại trên Bot: ${(parseFloat(document.getElementById('btcPrice').innerText)).toFixed(2)}`);
+                    } else if (m.startsWith("/setrsi")) {
+                        rsiBuy = parseInt(m.split(" ")[1]) || 40;
+                        rsiSell = 100 - rsiBuy;
+                        sendTele(`✅ Đã chỉnh RSI: ${rsiBuy}/${rsiSell}`);
+                    } else if (m === "/tp" || m === "/sl") {
+                        lastAction = ""; sendTele("🔄 Đã Reset. Đang săn kèo mới...");
+                    } else if (m === "/check") {
+                        sendTele(`📊 TRẠNG THÁI:\nGiá: ${document.getElementById('btcPrice').innerText}\n${document.getElementById('statusInfo').innerText}`);
+                    }
                 }
             } catch (e) {}
         }
