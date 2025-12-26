@@ -3,113 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOLD TREND CHART 44xx</title>
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <title>BTC BOT CONTROL PRO</title>
     <style>
-        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 10px; }
-        .box { border: 2px solid #f0b90b; border-radius: 12px; padding: 15px; background: #1c1f24; margin-bottom: 10px; }
-        #chart_div { width: 100%; height: 350px; background: #1c1f24; border-radius: 8px; }
-        .price { font-size: 38px; font-weight: bold; color: #f0b90b; margin: 5px 0; }
-        input { width: 90%; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #1e2329; color: white; text-align: center; font-size: 18px; }
-        button { width: 90%; padding: 18px; background: #f0b90b; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; cursor: pointer; }
+        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
+        .card { border: 2px solid #f3ba2f; border-radius: 12px; padding: 20px; background: #1e2329; }
+        .price { font-size: 45px; font-weight: bold; color: #f3ba2f; }
+        .log-box { text-align: left; background: #000; padding: 10px; height: 100px; overflow-y: auto; font-size: 12px; margin-top: 15px; border-radius: 5px; color: #2ebd85; }
+        button { width: 100%; padding: 18px; background: #f3ba2f; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <div style="color: #848e9c; font-size: 14px;">BIỂU ĐỒ VÀNG M1 - EXNESS 44xx</div>
-        <div id="price" class="price">0.00</div>
-        <div id="rsi" style="color: #2ebd85; font-weight: bold;">RSI: --</div>
-        <div id="chart_div"></div>
+    <div class="card">
+        <div>BTC/USDT REALTIME</div>
+        <div id="btcPrice" class="price">0.00</div>
+        <div id="rsiVal" style="font-size: 20px;">RSI: --</div>
+        <div id="status" style="margin-top: 10px; color: #848e9c;">ĐANG ĐỢI KÍCH HOẠT...</div>
+        <div id="logs" class="log-box">Hệ thống sẵn sàng...</div>
+        <button onclick="initBot()">KÍCH HOẠT HỆ THỐNG</button>
     </div>
 
-    <input type="number" id="exPrice" placeholder="Nhập giá Exness (VD: 4413)">
-    <button onclick="startBot()">BẬT NẾN & QUÉT TREND</button>
-
     <script>
-        google.charts.load('current', {'packages':['corechart']});
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-        let offset = 0, lastAction = "";
+        let lastAction = "";
+        let lastUpdateId = 0;
 
-        async function startBot() {
-            const val = parseFloat(document.getElementById('exPrice').value);
-            if(!val) return alert("Nhập giá 44xx đã bro!");
-            const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
-            const d = await r.json();
-            offset = val - parseFloat(d.price);
-            
-            setInterval(drawChart, 4000); // Cập nhật nến mỗi 4 giây
-            sendTele("🔱 NẾN ĐÃ LÊN - BOT ĐANG QUÉT PLAN 10/20");
+        function addLog(msg) {
+            const div = document.getElementById('logs');
+            div.innerHTML += `<br>> ${msg}`;
+            div.scrollTop = div.scrollHeight;
         }
 
-        async function drawChart() {
+        async function initBot() {
+            addLog("Bot đang khởi chạy...");
+            setInterval(updateMarket, 3000); // Quét giá
+            setInterval(checkTeleCommands, 2000); // Quét lệnh Tele mỗi 2s
+            sendTele("🤖 BOT BTC ĐÃ SẴN SÀNG!\nCác lệnh điều khiển:\n/tp : Reset bot sau khi chốt lãi\n/sl : Reset bot sau khi cắt lỗ\n/dca : Nhận plan DCA");
+        }
+
+        async function updateMarket() {
             try {
-                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1m&limit=30');
+                const r = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100');
                 const d = await r.json();
-                
-                // Chuẩn bị dữ liệu nến
-                let dataArray = d.map(x => [
-                    "", // Thời gian
-                    parseFloat(x[3]) + offset, // Thấp
-                    parseFloat(x[1]) + offset, // Mở
-                    parseFloat(x[4]) + offset, // Đóng
-                    parseFloat(x[2]) + offset  // Cao
-                ]);
+                const prices = d.map(x => parseFloat(x[4]));
+                const current = prices[prices.length - 1];
 
-                let data = google.visualization.arrayToDataTable(dataArray, true);
-                let options = {
-                    backgroundColor: '#1c1f24',
-                    chartArea: {width: '90%', height: '80%'},
-                    hAxis: {textStyle: {color: '#848e9c'}},
-                    vAxis: {textStyle: {color: '#848e9c'}, gridlines: {color: '#2b2b2b'}},
-                    candlestick: {
-                        fallingColor: { strokeWidth: 0, fill: '#f6465d' },
-                        risingColor: { strokeWidth: 0, fill: '#2ebd85' }
-                    },
-                    legend: 'none'
-                };
+                // Tính RSI
+                let g = 0, l = 0;
+                for (let i = prices.length - 14; i < prices.length; i++) {
+                    let diff = prices[i] - prices[i-1];
+                    if (diff >= 0) g += diff; else l -= diff;
+                }
+                const rsi = 100 - (100 / (1 + (g / l)));
 
-                let chart = new google.visualization.CandlestickChart(document.getElementById('chart_div'));
-                chart.draw(data, options);
+                document.getElementById('btcPrice').innerText = current.toFixed(2);
+                document.getElementById('rsiVal').innerText = "RSI: " + rsi.toFixed(2);
 
-                // Cập nhật giá & RSI
-                let lastClose = dataArray[dataArray.length-1][3];
-                document.getElementById('price').innerText = lastClose.toFixed(2);
-                
-                let closes = d.map(x => parseFloat(x[4]));
-                let rsi = calculateRSI(closes);
-                document.getElementById('rsi').innerText = "RSI: " + rsi.toFixed(2);
-
-                // Nhận diện Trend (Trung bình 30 nến)
-                let sma = closes.reduce((a, b) => a + b, 0) / closes.length;
-                let trend = lastClose > (sma + offset) ? "UP" : "DOWN";
-
-                // Logic Plan 10/20
-                if (trend === "DOWN" && rsi >= 65 && lastAction !== "SELL") {
-                    sendSignal("SELL", lastClose, rsi, "DOWN TREND");
-                    lastAction = "SELL";
-                } else if (trend === "UP" && rsi <= 35 && lastAction !== "BUY") {
-                    sendSignal("BUY", lastClose, rsi, "UP TREND");
+                // Logic vào lệnh (RSI 30/70)
+                if (rsi <= 30 && lastAction !== "BUY") {
+                    sendSignal("BUY", current, rsi);
                     lastAction = "BUY";
-                } else if (rsi > 45 && rsi < 55) { lastAction = ""; }
-
+                } else if (rsi >= 70 && lastAction !== "SELL") {
+                    sendSignal("SELL", current, rsi);
+                    lastAction = "SELL";
+                }
             } catch (e) {}
         }
 
-        function calculateRSI(p) {
-            let g = 0, l = 0;
-            for (let i = p.length - 14; i < p.length; i++) {
-                let diff = p[i] - p[i-1];
-                if (diff >= 0) g += diff; else l -= diff;
-            }
-            return 100 - (100 / (1 + (g / l)));
+        // Chức năng đọc lệnh từ Telegram
+        async function checkTeleCommands() {
+            try {
+                const r = await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
+                const d = await r.json();
+                if (d.result && d.result.length > 0) {
+                    for (let update of d.result) {
+                        lastUpdateId = update.update_id;
+                        const msg = update.message.text.toLowerCase();
+                        
+                        if (msg === "/tp" || msg === "/sl") {
+                            lastAction = ""; // RESET để bot có thể báo lệnh mới ngay lập tức
+                            addLog(`Đã nhận lệnh ${msg.toUpperCase()}. Bot đã sẵn sàng kèo tiếp theo.`);
+                            sendTele(`✅ Đã xác nhận ${msg.toUpperCase()}. Bot đang quét kèo mới...`);
+                        } 
+                        else if (msg === "/dca") {
+                            const p = document.getElementById('btcPrice').innerText;
+                            const dcaPrice = lastAction === "BUY" ? (p - 150) : (parseFloat(p) + 150);
+                            sendTele(`⚠️ [LỆNH DCA]\nGiá hiện tại: ${p}\nĐiểm DCA dự kiến: ${dcaPrice.toFixed(2)}\nGiữ nguyên SL cũ.`);
+                            addLog("Đã gửi Plan DCA theo yêu cầu.");
+                        }
+                    }
+                }
+            } catch (e) {}
         }
 
-        function sendSignal(side, price, rsi, trend) {
-            const sl = side === "SELL" ? price + 10 : price - 10;
-            const tp = side === "SELL" ? price - 20 : price + 20;
-            let m = `🔔 [PLAN ${side} THUẬN TREND]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n🔥 Trend: ${trend}\n📊 RSI: ${rsi.toFixed(2)}`;
-            fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(m)}`);
+        function sendSignal(side, price, rsi) {
+            const sl = side === "SELL" ? price + 150 : price - 150;
+            const tp = side === "SELL" ? price - 300 : price + 300;
+            let m = `🔔 [KÈO BTC ${side}]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`;
+            sendTele(m);
+            addLog(`Đã báo kèo ${side} tại ${price}`);
         }
 
         function sendTele(m) {
