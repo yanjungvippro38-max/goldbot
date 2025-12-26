@@ -27,12 +27,14 @@
         const CHAT_ID = "7994694689";
         let lastAction = "", lastUpdateId = 0, isPaused = false;
         let rsiBuy = 40, rsiSell = 60, priceOffset = 0;
+        let currentPrice = 0, currentRsi = 0, currentEma = 0, currentRsiM5 = 0;
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
         async function startVipBot() {
+            document.getElementById('logs').innerHTML = "> Hệ thống đã kích hoạt...";
             setInterval(updateData, 2000); 
             setInterval(checkTele, 2000);
-            sendTele("🚀 BTC MAX VIP READY!\n/offset [số] : Bù giá Exness\n/setrsi [số] : Đổi độ nhạy\n/check : Xem trạng thái");
+            sendTele("🚀 BTC MAX VIP READY!\n/offset [số] : Bù giá (VD: /offset -50)\n/setrsi [số] : Đổi độ nhạy\n/check : Xem trạng thái");
         }
 
         async function getRsi(interval) {
@@ -56,20 +58,23 @@
             const m5 = await getRsi('5m');
             if (!m1 || !m5) return;
 
-            // Tính EMA 9
+            currentPrice = m1.price;
+            currentRsi = m1.rsi;
+            currentRsiM5 = m5.rsi;
+
             const k = 2 / (9 + 1);
             let ema9 = m1.prices[0];
             for (let i = 1; i < m1.prices.length; i++) { ema9 = (m1.prices[i] * k) + (ema9 * (1 - k)); }
+            currentEma = ema9;
 
-            document.getElementById('btcPrice').innerText = (m1.price + priceOffset).toFixed(2);
-            document.getElementById('statusInfo').innerText = `M1: ${m1.rsi.toFixed(2)} | M5: ${m5.rsi.toFixed(2)} | EMA9: ${ema9.toFixed(2)} | Offset: ${priceOffset}`;
+            document.getElementById('btcPrice').innerText = (currentPrice + priceOffset).toFixed(2);
+            document.getElementById('statusInfo').innerText = `M1: ${currentRsi.toFixed(2)} | M5: ${currentRsiM5.toFixed(2)} | EMA9: ${currentEma.toFixed(2)} | Offset: ${priceOffset}`;
 
-            // LOGIC ÉP LỆNH VIP + EMA
-            if (m1.rsi <= rsiBuy && m1.price > ema9 && lastAction !== "BUY") {
-                triggerSignal("BUY", m1.price, m1.rsi, m5.rsi);
+            if (currentRsi <= rsiBuy && currentPrice > currentEma && lastAction !== "BUY") {
+                triggerSignal("BUY", currentPrice, currentRsi, currentRsiM5);
                 lastAction = "BUY";
-            } else if (m1.rsi >= rsiSell && m1.price < ema9 && lastAction !== "SELL") {
-                triggerSignal("SELL", m1.price, m1.rsi, m5.rsi);
+            } else if (currentRsi >= rsiSell && currentPrice < currentEma && lastAction !== "SELL") {
+                triggerSignal("SELL", currentPrice, currentRsi, currentRsiM5);
                 lastAction = "SELL";
             }
         }
@@ -80,34 +85,29 @@
             const sl = side === "SELL" ? entry + 100 : entry - 100;
             const tp1 = side === "SELL" ? entry - 100 : entry + 100;
             const tp2 = side === "SELL" ? entry - 250 : entry + 250;
-            const tp3 = side === "SELL" ? entry - 500 : entry + 500;
             
-            let m = `💎 [KÈO MAX VIP ${side}]\n📍 Entry: ${entry.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n🎯 TP1: ${tp1.toFixed(2)}\n🎯 TP2: ${tp2.toFixed(2)}\n🎯 TP3: ${tp3.toFixed(2)}\n📊 RSI M1: ${r1.toFixed(2)} | M5: ${r5.toFixed(2)}`;
+            let m = `💎 [KÈO MAX VIP ${side}]\n📍 Entry: ${entry.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n🎯 TP1: ${tp1.toFixed(2)}\n🎯 TP2: ${tp2.toFixed(2)}\n📊 RSI M1: ${r1.toFixed(2)} | M5: ${r5.toFixed(2)}`;
             sendTele(m);
-            const l = document.getElementById('logs');
-            l.innerHTML += `<br>> Đã nổ kèo ${side} lúc ${new Date().toLocaleTimeString()}`;
-            l.scrollTop = l.scrollHeight;
         }
 
         async function checkTele() {
             try {
                 const r = await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
                 const d = await r.json();
-                if (!d.result) return;
-                for (let u of d.result) {
-                    lastUpdateId = u.update_id;
-                    const m = u.message.text.toLowerCase();
-                    if (m.startsWith("/offset")) {
-                        priceOffset = parseFloat(m.split(" ")[1]) || 0;
-                        sendTele(`✅ Đã bù giá: ${priceOffset}. Giá hiện tại trên Bot: ${(parseFloat(document.getElementById('btcPrice').innerText)).toFixed(2)}`);
-                    } else if (m.startsWith("/setrsi")) {
-                        rsiBuy = parseInt(m.split(" ")[1]) || 40;
-                        rsiSell = 100 - rsiBuy;
-                        sendTele(`✅ Đã chỉnh RSI: ${rsiBuy}/${rsiSell}`);
-                    } else if (m === "/tp" || m === "/sl") {
-                        lastAction = ""; sendTele("🔄 Đã Reset. Đang săn kèo mới...");
-                    } else if (m === "/check") {
-                        sendTele(`📊 TRẠNG THÁI:\nGiá: ${document.getElementById('btcPrice').innerText}\n${document.getElementById('statusInfo').innerText}`);
+                if (d.result && d.result.length > 0) {
+                    for (let u of d.result) {
+                        lastUpdateId = u.update_id;
+                        const m = u.message.text.toLowerCase();
+                        
+                        if (m.startsWith("/offset")) {
+                            priceOffset = parseFloat(m.split(" ")[1]) || 0;
+                            sendTele(`✅ ĐÃ NHẬN OFFSET: ${priceOffset}\nGiá Exness hiện tại: ${(currentPrice + priceOffset).toFixed(2)}`);
+                        } else if (m === "/check") {
+                            sendTele(`📊 STATUS:\nGiá Exness: ${(currentPrice + priceOffset).toFixed(2)}\nRSI M1: ${currentRsi.toFixed(2)}\nRSI M5: ${currentRsiM5.toFixed(2)}\nOffset: ${priceOffset}`);
+                        } else if (m === "/tp" || m === "/sl") {
+                            lastAction = "";
+                            sendTele("🔄 Reset OK! Đang săn kèo...");
+                        }
                     }
                 }
             } catch (e) {}
