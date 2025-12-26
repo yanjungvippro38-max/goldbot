@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC BOT CONTROL PRO</title>
+    <title>BTC AGGRESSIVE BOT</title>
     <style>
-        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
-        .card { border: 2px solid #f3ba2f; border-radius: 12px; padding: 20px; background: #1e2329; }
-        .price { font-size: 45px; font-weight: bold; color: #f3ba2f; }
-        .log-box { text-align: left; background: #000; padding: 10px; height: 100px; overflow-y: auto; font-size: 12px; margin-top: 15px; border-radius: 5px; color: #2ebd85; }
-        button { width: 100%; padding: 18px; background: #f3ba2f; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; margin-top: 10px; }
+        body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .card { border: 2px solid #f3ba2f; border-radius: 15px; padding: 20px; background: #1e2329; border-left: 10px solid #f3ba2f; }
+        .btc-price { font-size: 45px; font-weight: bold; color: #f3ba2f; margin: 10px 0; }
+        .log-window { text-align: left; background: #000; padding: 10px; height: 120px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 15px; color: #2ebd85; border-radius: 5px; }
+        button { width: 100%; padding: 18px; background: #f3ba2f; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; cursor: pointer; }
+        .alert-mode { color: #f6465d; font-weight: bold; font-size: 14px; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="card">
-        <div>BTC/USDT REALTIME</div>
-        <div id="btcPrice" class="price">0.00</div>
-        <div id="rsiVal" style="font-size: 20px;">RSI: --</div>
-        <div id="status" style="margin-top: 10px; color: #848e9c;">ĐANG ĐỢI KÍCH HOẠT...</div>
-        <div id="logs" class="log-box">Hệ thống sẵn sàng...</div>
-        <button onclick="initBot()">KÍCH HOẠT HỆ THỐNG</button>
+        <div class="alert-mode">⚠️ CHẾ ĐỘ: ÉP LỆNH (RSI 40/60)</div>
+        <div id="btcPrice" class="btc-price">0.00</div>
+        <div id="rsiVal" style="font-size: 24px; color: #f3ba2f; font-weight: bold;">RSI: --</div>
+        <div id="lastActionDisplay" style="margin-top: 10px; color: #848e9c;">Chế độ: Đánh cả 2 đầu</div>
+        <div id="logs" class="log-window">Hệ thống ép lệnh sẵn sàng...</div>
+        <button onclick="startAggressiveBot()">BẬT CHẾ ĐỘ ÉP LỆNH</button>
     </div>
 
     <script>
@@ -29,16 +30,16 @@
         let lastUpdateId = 0;
 
         function addLog(msg) {
-            const div = document.getElementById('logs');
-            div.innerHTML += `<br>> ${msg}`;
-            div.scrollTop = div.scrollHeight;
+            const l = document.getElementById('logs');
+            l.innerHTML += `<br>> ${msg}`;
+            l.scrollTop = l.scrollHeight;
         }
 
-        async function initBot() {
-            addLog("Bot đang khởi chạy...");
-            setInterval(updateMarket, 3000); // Quét giá
-            setInterval(checkTeleCommands, 2000); // Quét lệnh Tele mỗi 2s
-            sendTele("🤖 BOT BTC ĐÃ SẴN SÀNG!\nCác lệnh điều khiển:\n/tp : Reset bot sau khi chốt lãi\n/sl : Reset bot sau khi cắt lỗ\n/dca : Nhận plan DCA");
+        async function startAggressiveBot() {
+            addLog("Đã kích hoạt chế độ ÉP LỆNH (RSI 40/60)...");
+            setInterval(updateMarket, 3000); 
+            setInterval(checkTeleCommands, 2000);
+            sendTele("🔥 BOT BTC: ĐÃ BẬT CHẾ ĐỘ ÉP LỆNH!\nKèo sẽ nổ liên tục. Chuẩn bị sẵn lệnh trên sàn!");
         }
 
         async function updateMarket() {
@@ -59,18 +60,17 @@
                 document.getElementById('btcPrice').innerText = current.toFixed(2);
                 document.getElementById('rsiVal').innerText = "RSI: " + rsi.toFixed(2);
 
-                // Logic vào lệnh (RSI 30/70)
-                if (rsi <= 30 && lastAction !== "BUY") {
-                    sendSignal("BUY", current, rsi);
+                // CHẾ ĐỘ ÉP LỆNH: RSI 40/60
+                if (rsi <= 40 && lastAction !== "BUY") {
+                    triggerSignal("BUY", current, rsi);
                     lastAction = "BUY";
-                } else if (rsi >= 70 && lastAction !== "SELL") {
-                    sendSignal("SELL", current, rsi);
+                } else if (rsi >= 60 && lastAction !== "SELL") {
+                    triggerSignal("SELL", current, rsi);
                     lastAction = "SELL";
                 }
             } catch (e) {}
         }
 
-        // Chức năng đọc lệnh từ Telegram
         async function checkTeleCommands() {
             try {
                 const r = await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
@@ -79,29 +79,21 @@
                     for (let update of d.result) {
                         lastUpdateId = update.update_id;
                         const msg = update.message.text.toLowerCase();
-                        
                         if (msg === "/tp" || msg === "/sl") {
-                            lastAction = ""; // RESET để bot có thể báo lệnh mới ngay lập tức
-                            addLog(`Đã nhận lệnh ${msg.toUpperCase()}. Bot đã sẵn sàng kèo tiếp theo.`);
-                            sendTele(`✅ Đã xác nhận ${msg.toUpperCase()}. Bot đang quét kèo mới...`);
-                        } 
-                        else if (msg === "/dca") {
-                            const p = document.getElementById('btcPrice').innerText;
-                            const dcaPrice = lastAction === "BUY" ? (p - 150) : (parseFloat(p) + 150);
-                            sendTele(`⚠️ [LỆNH DCA]\nGiá hiện tại: ${p}\nĐiểm DCA dự kiến: ${dcaPrice.toFixed(2)}\nGiữ nguyên SL cũ.`);
-                            addLog("Đã gửi Plan DCA theo yêu cầu.");
+                            lastAction = ""; 
+                            sendTele(`✅ Đã reset. Đang quét kèo ép lệnh mới...`);
+                            addLog("Đã nhận lệnh reset từ Tele.");
                         }
                     }
                 }
             } catch (e) {}
         }
 
-        function sendSignal(side, price, rsi) {
+        function triggerSignal(side, price, rsi) {
             const sl = side === "SELL" ? price + 150 : price - 150;
             const tp = side === "SELL" ? price - 300 : price + 300;
-            let m = `🔔 [KÈO BTC ${side}]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`;
-            sendTele(m);
-            addLog(`Đã báo kèo ${side} tại ${price}`);
+            sendTele(`🔥 [KÈO ÉP LỆNH BTC ${side}]\n📍 Entry: ${price.toFixed(2)}\n🚫 SL: ${sl.toFixed(2)}\n✅ TP: ${tp.toFixed(2)}\n📊 RSI: ${rsi.toFixed(2)}`);
+            addLog(`Đã nổ kèo ép ${side} tại ${price}`);
         }
 
         function sendTele(m) {
