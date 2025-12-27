@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC RECOVERY - START COMMAND</title>
+    <title>BTC RECOVERY AI - V6 WITH TP/SL</title>
     <style>
         body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 10px; }
         .card { border: 2px solid #f3ba2f; border-radius: 15px; padding: 15px; background: #1e2329; }
@@ -12,25 +12,21 @@
         .log-box { text-align: left; background: #000; padding: 10px; height: 150px; overflow-y: auto; font-size: 11px; color: #00ff88; border: 1px solid #333; margin-top: 10px; }
     </style>
 </head>
-<body onload="initBot()"> <div class="card">
-        <div id="botStatus" style="font-size: 12px; color: #ff4d4d;">🔴 BOT ĐANG TẮT - GÕ /START ĐỂ CHẠY</div>
+<body onload="initBot()">
+    <div class="card">
+        <div id="botStatus" style="font-size: 12px; color: #ff4d4d;">🔴 GÕ /START ĐỂ NHẬN KÈO CÓ TP/SL</div>
         <div id="btcPrice" class="price">0.00</div>
-        <div id="info" style="font-size: 13px; color: #848e9c;">Sẵn sàng nhận lệnh từ Telegram...</div>
-        <div id="logs" class="log-box">> Hệ thống đã load. Chờ lệnh /start...</div>
+        <div id="info" style="font-size: 13px; color: #848e9c;">Sync: -72.77 | Chờ tín hiệu...</div>
+        <div id="logs" class="log-box">> Hệ thống sẵn sàng.</div>
     </div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-        let isRunning = false, lastUpdateId = 0, priceOffset = -80;
+        let isRunning = false, lastUpdateId = 0, priceOffset = -72.77;
         let currentPrice = 0, currentRsi = 0, lastAction = "";
-        let tradeHistory = [];
 
-        // Khởi tạo chế độ lắng nghe ngay khi mở web
-        function initBot() {
-            addLog("Đang lắng nghe Telegram...");
-            setInterval(checkTele, 1500); 
-        }
+        function initBot() { setInterval(checkTele, 1500); }
 
         async function updateData() {
             if (!isRunning) return;
@@ -40,7 +36,6 @@
                 const prices = d.map(x => parseFloat(x[4]));
                 currentPrice = prices[prices.length - 1];
 
-                // Tính RSI nhanh
                 let g = 0, l = 0;
                 for (let i = prices.length - 14; i < prices.length; i++) {
                     let diff = prices[i] - prices[i-1];
@@ -49,14 +44,21 @@
                 currentRsi = 100 - (100 / (1 + (g / l)));
 
                 document.getElementById('btcPrice').innerText = (currentPrice + priceOffset).toFixed(2);
-                document.getElementById('info').innerText = `M1: ${currentRsi.toFixed(2)} | Offset: ${priceOffset}`;
+                document.getElementById('info').innerText = `M1: ${currentRsi.toFixed(2)} | RSI Target: 40/65`;
 
-                // Logic báo kèo tự động
+                // Logic báo kèo kèm TP/SL tự động
                 if (currentRsi <= 40 && lastAction !== "BUY") {
-                    sendTele(`💎 [KÈO BUY]\n📍 Entry: ${(currentPrice + priceOffset).toFixed(2)}\n📊 RSI: ${currentRsi.toFixed(2)}`);
+                    let entry = currentPrice + priceOffset;
+                    let tp = entry + 80; // TP cách 80 giá
+                    let sl = entry - 100; // SL cách 100 giá
+                    sendTele(`💎 [KÈO BUY]\n📍 Entry: ${entry.toFixed(2)}\n🎯 TP: ${tp.toFixed(2)}\n🛡️ SL: ${sl.toFixed(2)}\n📊 RSI: ${currentRsi.toFixed(2)}`);
                     lastAction = "BUY";
-                } else if (currentRsi >= 60 && lastAction !== "SELL") {
-                    sendTele(`💎 [KÈO SELL]\n📍 Entry: ${(currentPrice + priceOffset).toFixed(2)}\n📊 RSI: ${currentRsi.toFixed(2)}`);
+                } 
+                else if (currentRsi >= 65 && lastAction !== "SELL") {
+                    let entry = currentPrice + priceOffset;
+                    let tp = entry - 80; 
+                    let sl = entry + 100;
+                    sendTele(`💎 [KÈO SELL]\n📍 Entry: ${entry.toFixed(2)}\n🎯 TP: ${tp.toFixed(2)}\n🛡️ SL: ${sl.toFixed(2)}\n📊 RSI: ${currentRsi.toFixed(2)}`);
                     lastAction = "SELL";
                 }
             } catch (e) {}
@@ -74,29 +76,21 @@
                         if (m === "/start") {
                             isRunning = true;
                             setInterval(updateData, 2000);
-                            document.getElementById('botStatus').innerHTML = "🟢 BOT ĐANG CHẠY KÈO...";
+                            document.getElementById('botStatus').innerHTML = "🟢 ĐANG QUÉT KÈO KÈM TP/SL...";
                             document.getElementById('botStatus').className = "status-on";
-                            sendTele("🚀 HỆ THỐNG ĐÃ KÍCH HOẠT! Đang quét kèo BTC...");
-                            addLog("Lệnh /start nhận thành công!");
+                            sendTele("🚀 BOT V6 READY!\nKèo sẽ kèm sẵn TP/SL để bro copy.");
                         }
                         else if (m === "/tp" || m === "/sl") {
-                            tradeHistory.push({ res: m.toUpperCase(), time: new Date().toLocaleTimeString() });
                             lastAction = ""; 
                             sendTele(`✅ Đã lưu ${m.toUpperCase()}. Chờ kèo mới...`);
                         }
-                        else if (m === "/history") {
-                            let txt = tradeHistory.map(t => `${t.time}: ${t.res}`).join("\n");
-                            sendTele(`📜 LỊCH SỬ:\n${txt || "Chưa có dữ liệu"}`);
+                        else if (m.startsWith("/sync")) {
+                            let mt5 = parseFloat(m.split(" ")[1]);
+                            if (mt5) { priceOffset = mt5 - currentPrice; sendTele(`🎯 Đã khớp giá MT5!`); }
                         }
                     }
                 }
             } catch (e) {}
-        }
-
-        function addLog(msg) {
-            const l = document.getElementById('logs');
-            l.innerHTML += `<br>> ${msg}`;
-            l.scrollTop = l.scrollHeight;
         }
 
         function sendTele(m) { fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(m)}`); }
