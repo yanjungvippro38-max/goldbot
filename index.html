@@ -3,50 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC RECOVERY AI - V3 FIX</title>
+    <title>BTC RECOVERY - START COMMAND</title>
     <style>
         body { background: #0b0e11; color: white; font-family: sans-serif; text-align: center; padding: 10px; }
-        .card { border: 2px solid #f3ba2f; border-radius: 15px; padding: 15px; background: #1e2329; box-shadow: 0 0 20px rgba(243, 186, 47, 0.2); }
+        .card { border: 2px solid #f3ba2f; border-radius: 15px; padding: 15px; background: #1e2329; }
         .price { font-size: 40px; font-weight: bold; color: #f3ba2f; margin: 10px 0; }
-        .info { font-size: 13px; color: #848e9c; margin-bottom: 10px; line-height: 1.6; }
-        .log-box { text-align: left; background: #000; padding: 10px; height: 180px; overflow-y: auto; font-size: 11px; color: #00ff88; border: 1px solid #333; margin-top: 10px; }
-        button { width: 100%; padding: 18px; background: #f3ba2f; color: black; font-weight: bold; border-radius: 10px; border: none; font-size: 20px; cursor: pointer; }
-        .win { color: #00ff88; font-weight: bold; } .loss { color: #ff4d4d; font-weight: bold; }
+        .status-on { color: #00ff88; font-weight: bold; }
+        .log-box { text-align: left; background: #000; padding: 10px; height: 150px; overflow-y: auto; font-size: 11px; color: #00ff88; border: 1px solid #333; margin-top: 10px; }
     </style>
 </head>
-<body>
-    <div class="card">
-        <div style="font-size: 12px; color: #00ff88; font-weight: bold;">💎 BTC AI V3 - FIX TP/SL & AUTO SYNC</div>
+<body onload="initBot()"> <div class="card">
+        <div id="botStatus" style="font-size: 12px; color: #ff4d4d;">🔴 BOT ĐANG TẮT - GÕ /START ĐỂ CHẠY</div>
         <div id="btcPrice" class="price">0.00</div>
-        <div id="statusInfo" class="info">M1: -- | M5: -- | Sync Offset: 0<br>EMA9: -- | Lịch sử: 0 lệnh</div>
-        <div id="logs" class="log-box">> Hệ thống đang chờ kích hoạt...</div>
-        <button onclick="startVipBot()">KÍCH HOẠT HỆ THỐNG</button>
+        <div id="info" style="font-size: 13px; color: #848e9c;">Sẵn sàng nhận lệnh từ Telegram...</div>
+        <div id="logs" class="log-box">> Hệ thống đã load. Chờ lệnh /start...</div>
     </div>
 
     <script>
         const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-        let lastAction = "", lastUpdateId = 0;
-        let rsiBuy = 40, rsiSell = 60, priceOffset = -80; 
-        let currentPrice = 0, currentRsi = 0, currentEma = 0, currentRsiM5 = 0;
-        let tradeHistory = []; 
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        let isRunning = false, lastUpdateId = 0, priceOffset = -80;
+        let currentPrice = 0, currentRsi = 0, lastAction = "";
+        let tradeHistory = [];
 
-        async function startVipBot() {
-            document.getElementById('logs').innerHTML = "> Bot đã chạy. Đang quét tín hiệu...";
-            setInterval(updateData, 2000); 
-            setInterval(checkTele, 1500); // Tăng tốc độ check lệnh Tele
-            sendTele("🚀 BOT V3 READY!\n- /tp : Lưu thắng\n- /sl : Lưu thua\n- /sync [giá MT5] : Tự khớp giá chuẩn\n- /history : Xem lịch sử gỡ nợ");
+        // Khởi tạo chế độ lắng nghe ngay khi mở web
+        function initBot() {
+            addLog("Đang lắng nghe Telegram...");
+            setInterval(checkTele, 1500); 
         }
 
         async function updateData() {
+            if (!isRunning) return;
             try {
-                const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100`);
+                const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=50`);
                 const d = await r.json();
                 const prices = d.map(x => parseFloat(x[4]));
                 currentPrice = prices[prices.length - 1];
 
-                // Tính RSI M1
+                // Tính RSI nhanh
                 let g = 0, l = 0;
                 for (let i = prices.length - 14; i < prices.length; i++) {
                     let diff = prices[i] - prices[i-1];
@@ -54,25 +48,16 @@
                 }
                 currentRsi = 100 - (100 / (1 + (g / l)));
 
-                // Tính EMA 9
-                const k = 2 / (9 + 1);
-                let ema = prices[0];
-                for (let i = 1; i < prices.length; i++) { ema = (prices[i] * k) + (ema * (1 - k)); }
-                currentEma = ema;
-
                 document.getElementById('btcPrice').innerText = (currentPrice + priceOffset).toFixed(2);
-                document.getElementById('statusInfo').innerHTML = `M1: ${currentRsi.toFixed(2)} | EMA9: ${currentEma.toFixed(2)} | Offset: ${priceOffset.toFixed(2)}<br>Lịch sử: ${tradeHistory.length} lệnh`;
+                document.getElementById('info').innerText = `M1: ${currentRsi.toFixed(2)} | Offset: ${priceOffset}`;
 
-                // Logic báo kèo
-                if (currentRsi <= rsiBuy && currentPrice > currentEma && lastAction !== "BUY") {
-                    sendTele(`💎 [BUY NOW]\n📍 Entry: ${(currentPrice + priceOffset).toFixed(2)}\n📊 RSI: ${currentRsi.toFixed(2)}`);
+                // Logic báo kèo tự động
+                if (currentRsi <= 40 && lastAction !== "BUY") {
+                    sendTele(`💎 [KÈO BUY]\n📍 Entry: ${(currentPrice + priceOffset).toFixed(2)}\n📊 RSI: ${currentRsi.toFixed(2)}`);
                     lastAction = "BUY";
-                    addLog("Phát hiện điểm BUY tốt!");
-                }
-                if (currentRsi >= rsiSell && currentPrice < currentEma && lastAction !== "SELL") {
-                    sendTele(`💎 [SELL NOW]\n📍 Entry: ${(currentPrice + priceOffset).toFixed(2)}\n📊 RSI: ${currentRsi.toFixed(2)}`);
+                } else if (currentRsi >= 60 && lastAction !== "SELL") {
+                    sendTele(`💎 [KÈO SELL]\n📍 Entry: ${(currentPrice + priceOffset).toFixed(2)}\n📊 RSI: ${currentRsi.toFixed(2)}`);
                     lastAction = "SELL";
-                    addLog("Phát hiện điểm SELL tốt!");
                 }
             } catch (e) {}
         }
@@ -84,43 +69,33 @@
                 if (d.result && d.result.length > 0) {
                     for (let u of d.result) {
                         lastUpdateId = u.update_id;
-                        if (!u.message || !u.message.text) continue;
-                        const m = u.message.text.trim().toLowerCase();
+                        const m = u.message.text.toLowerCase();
 
-                        // Sửa lỗi nhận lệnh TP/SL
-                        if (m === "/tp") {
-                            const data = { type: lastAction || "Kèo", result: "TP", time: new Date().toLocaleTimeString() };
-                            tradeHistory.push(data);
-                            lastAction = ""; 
-                            sendTele("✅ CHÚC MỪNG! Đã chốt lãi và lưu lịch sử.");
-                            addLog("Lệnh THẮNG đã được ghi nhận", "win");
-                        } 
-                        else if (m === "/sl") {
-                            const data = { type: lastAction || "Kèo", result: "SL", time: new Date().toLocaleTimeString() };
-                            tradeHistory.push(data);
-                            lastAction = "";
-                            sendTele("❌ ĐÃ SL. Bot đang phân tích lại để gỡ nợ.");
-                            addLog("Lệnh THUA đã được ghi nhận", "loss");
+                        if (m === "/start") {
+                            isRunning = true;
+                            setInterval(updateData, 2000);
+                            document.getElementById('botStatus').innerHTML = "🟢 BOT ĐANG CHẠY KÈO...";
+                            document.getElementById('botStatus').className = "status-on";
+                            sendTele("🚀 HỆ THỐNG ĐÃ KÍCH HOẠT! Đang quét kèo BTC...");
+                            addLog("Lệnh /start nhận thành công!");
                         }
-                        else if (m.startsWith("/sync")) {
-                            let mt5Price = parseFloat(m.split(" ")[1]);
-                            if (mt5Price) {
-                                priceOffset = mt5Price - currentPrice;
-                                sendTele(`🎯 Đã đồng bộ! Offset mới: ${priceOffset.toFixed(2)}`);
-                            }
+                        else if (m === "/tp" || m === "/sl") {
+                            tradeHistory.push({ res: m.toUpperCase(), time: new Date().toLocaleTimeString() });
+                            lastAction = ""; 
+                            sendTele(`✅ Đã lưu ${m.toUpperCase()}. Chờ kèo mới...`);
                         }
                         else if (m === "/history") {
-                            let txt = tradeHistory.map(t => `${t.time}: ${t.result} (${t.type})`).join("\n");
-                            sendTele(`📜 LỊCH SỬ GỠ NỢ:\n${txt || "Chưa có dữ liệu"}`);
+                            let txt = tradeHistory.map(t => `${t.time}: ${t.res}`).join("\n");
+                            sendTele(`📜 LỊCH SỬ:\n${txt || "Chưa có dữ liệu"}`);
                         }
                     }
                 }
             } catch (e) {}
         }
 
-        function addLog(msg, className = "") {
+        function addLog(msg) {
             const l = document.getElementById('logs');
-            l.innerHTML += `<br><span class="${className}">> ${msg}</span>`;
+            l.innerHTML += `<br>> ${msg}`;
             l.scrollTop = l.scrollHeight;
         }
 
