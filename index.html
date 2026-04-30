@@ -3,164 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOLD MASTER V28.2 - SCALP PRO</title>
+    <title>CRYPTO MASTER V28.2 PRO - SCALPER</title>
     <style>
-        :root { --bg: #0b0e11; --card: #1e2329; --green: #00f0b5; --red: #ff3b30; --gold: #ffd700; --blue: #00d4ff; }
-        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 10px; margin: 0; }
-        .card { border: 1px solid #333; border-top: 5px solid var(--gold); border-radius: 15px; padding: 20px; background: var(--card); max-width: 420px; margin: 10px auto; }
-        .price { font-size: 50px; font-weight: bold; margin: 10px 0; color: white; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 15px 0; }
-        .info-box { background: #2b3139; padding: 10px; border-radius: 8px; border: 1px solid #383f47; }
-        .info-box span { display: block; font-size: 9px; color: #848e9c; text-transform: uppercase; }
-        .info-box b { font-size: 16px; color: var(--gold); }
-        .status-bar { padding: 10px; border-radius: 8px; background: rgba(0, 212, 255, 0.1); border: 1px solid var(--blue); margin-top: 10px; font-weight: bold; font-size: 13px; }
-        .wallet-info { font-size: 11px; color: var(--green); margin-bottom: 10px; }
+        :root { --bg: #0b0e11; --card: #1e2329; --green: #02c076; --red: #f84960; --gold: #f3ba2f; --blue: #2f8af3; --gray: #848e9c; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 10px; }
+        .container { max-width: 450px; margin: 0 auto; }
+        .card { background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid #333; border-top: 6px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .badge { background: var(--blue); color: white; font-size: 10px; padding: 3px 8px; border-radius: 5px; font-weight: bold; }
+        .price { font-size: 48px; font-weight: 800; margin: 10px 0; letter-spacing: -1px; }
+        .symbol { color: var(--gold); font-size: 18px; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 20px 0; }
+        .box { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; border: 1px solid #383f47; }
+        .box span { display: block; font-size: 10px; color: var(--gray); margin-bottom: 5px; text-transform: uppercase; }
+        .box b { font-size: 15px; display: block; }
+        .news-box { background: rgba(243, 186, 47, 0.1); border: 1px solid var(--gold); border-radius: 10px; padding: 10px; font-size: 11px; margin: 15px 0; text-align: left; color: #eee; }
+        .status { padding: 12px; border-radius: 12px; font-weight: bold; font-size: 13px; background: rgba(2, 192, 118, 0.1); border: 1px solid var(--green); color: var(--green); }
+        .trading { border-color: var(--red); color: var(--red); background: rgba(248, 73, 96, 0.1); }
+        select { background: #2b3139; color: white; border: none; padding: 5px; border-radius: 5px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body onload="initBot()">
-    <div class="card">
-        <div class="wallet-info">💰 VỐN MỤC TIÊU: 113.00 USD | MODE: SCALPING</div>
-        <div id="modeTag" style="font-size: 12px; color: var(--blue); font-weight: bold;">HỆ THỐNG MASTER V28.2</div>
-        <div id="goldPrice" class="price">0.00</div>
-        
-        <div class="info-grid">
-            <div class="info-box"><span>VOL</span><b id="volPower">--</b></div>
-            <div class="info-box"><span>ATR</span><b id="atrVal">--</b></div>
-            <div class="info-box"><span>SÓNG</span><b id="wavePower">--</b></div>
-        </div>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div><span class="symbol" id="displaySymbol">BTC/USDT</span> <span class="badge">V28.2 PRO</span></div>
+                <select id="assetSelect" onchange="changeAsset()">
+                    <option value="BTCUSDT">BTC</option>
+                    <option value="ETHUSDT">ETH</option>
+                    <option value="SOLUSDT">SOL</option>
+                </select>
+            </div>
 
-        <div class="status-bar" id="marketState">Đang quét cấu trúc...</div>
-        <div id="multiTrend" style="margin-top:15px; font-size: 12px; color: #848e9c;">SCALP MODE: ACTIVE</div>
+            <div class="price" id="mainPrice">0.00</div>
+            <div id="pnlDisplay" style="font-size: 13px; margin-top: -10px; margin-bottom: 10px; color: var(--gray);">Vốn mục tiêu: 113.00 USD</div>
+
+            <div class="grid">
+                <div class="box"><span>RSI (14)</span><b id="rsiVal">--</b></div>
+                <div class="box"><span>ATR</span><b id="atrVal">--</b></div>
+                <div class="box"><span>VOL 24H</span><b id="volVal">--</b></div>
+            </div>
+
+            <div class="news-box" id="newsContent">
+                ⌛ Đang cập nhật tin tức thị trường...
+            </div>
+
+            <div class="status" id="botStatus">HỆ THỐNG ĐANG QUÉT CẤU TRÚC...</div>
+            <div style="font-size: 10px; color: var(--gray); margin-top: 15px;">Bot tự động quét mỗi 3 giây | Kết nối: Binance API</div>
+        </div>
     </div>
 
     <script>
-        const TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
+        // === CẤU HÌNH HỆ THỐNG ===
+        const TELE_TOKEN = "8586899878:AAHONzWJqzUMswUPMjn5xaWvYrwDHSH4OYE";
         const CHAT_ID = "7994694689";
-
-        let lastUpdateId = 0, priceOffset = 0, basePrice = 0, isTrading = false;
-        let globalData = [];
+        
+        let currentSymbol = "BTCUSDT";
+        let isTrading = false;
+        let lastUpdateId = 0;
+        let entryPrice = 0;
+        let tradeType = "";
+        let currentATR = 0;
 
         async function initBot() {
-            await updateData();
-            sendTele("🚀 **BOT V28.2 ĐÃ LÊN ĐÈN!**\nVốn: 113 USD - Sẵn sàng Scalp.");
-            setInterval(updateData, 2000);
-            setInterval(checkTeleCommands, 1500);
+            updateNews();
+            setInterval(updateMarket, 3000);
+            setInterval(checkTeleCommands, 2000);
+            setInterval(updateNews, 300000); // 5 phút cập nhật tin
+            sendTele("🚀 **HỆ THỐNG MASTER V28.2 ĐÃ KÍCH HOẠT**\n\n💰 Vốn: 113 USD\n🔍 Đang quét: BTC, ETH, SOL\n🛡 Chế độ: Scalping An Toàn.");
         }
 
-        async function updateData() {
+        async function updateMarket() {
             try {
-                const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=15m&limit=100`);
-                globalData = await r.json();
-                const prices = globalData.map(x => parseFloat(x[4]));
-                const volumes = globalData.map(x => parseFloat(x[5]));
-                
-                basePrice = prices[prices.length - 1];
-                const currentPrice = basePrice + priceOffset;
-                document.getElementById('goldPrice').innerText = currentPrice.toFixed(2);
+                const response = await fetch(`https://binance.com{currentSymbol}&interval=15m&limit=50`);
+                const data = await response.json();
+                const tickerRes = await fetch(`https://binance.com{currentSymbol}`);
+                const ticker = await tickerRes.json();
 
-                const avgVol = volumes.slice(-21, -1).reduce((a, b) => a + b, 0) / 20;
-                const volRatio = (volumes[volumes.length - 1] / avgVol).toFixed(1);
-                const atr = calculateATR(globalData);
+                const prices = data.map(d => parseFloat(d[4]));
+                const currentPrice = prices[prices.length - 1];
                 
-                document.getElementById('volPower').innerText = volRatio + "x";
-                document.getElementById('atrVal').innerText = atr.toFixed(2);
-                document.getElementById('wavePower').innerText = (currentPrice - prices[prices.length-5]).toFixed(2);
+                // Hiển thị giao diện
+                document.getElementById('mainPrice').innerText = currentPrice.toLocaleString();
+                document.getElementById('displaySymbol').innerText = currentSymbol.replace('USDT', '/USDT');
+                document.getElementById('volVal').innerText = (parseFloat(ticker.quoteVolume) / 1000000).toFixed(1) + "M";
 
-                const structure = analyzeStructure(globalData);
+                // Chỉ báo kỹ thuật
+                currentATR = calculateATR(data);
+                const rsi = calculateRSI(prices);
+                document.getElementById('atrVal').innerText = currentATR.toFixed(2);
+                document.getElementById('rsiVal').innerText = rsi.toFixed(1);
+
+                // Logic vào lệnh
                 if (!isTrading) {
-                    checkSignal(currentPrice, volRatio, atr, structure);
+                    checkScalpSignal(currentPrice, rsi, data);
                 } else {
-                    document.getElementById('marketState').innerText = "🏹 ĐANG TRONG LỆNH...";
+                    updateLivePnL(currentPrice);
                 }
-            } catch (e) {}
+            } catch (e) { console.error("Lỗi dữ liệu:", e); }
         }
 
         function calculateATR(data) {
             let sum = 0;
-            for (let i = data.length - 14; i < data.length; i++) {
+            const period = 14;
+            for (let i = data.length - period; i < data.length; i++) {
                 sum += (parseFloat(data[i][2]) - parseFloat(data[i][3]));
             }
-            return sum / 14;
+            return sum / period;
         }
 
-        function analyzeStructure(data) {
-            const last20 = data.slice(-20);
-            const high = Math.max(...last20.map(x => x[2]));
-            const low = Math.min(...last20.map(x => x[3]));
-            const current = parseFloat(data[data.length-1][4]);
-            if (current > (high - (high-low)*0.2)) return "TĂNG";
-            if (current < (low + (high-low)*0.2)) return "GIẢM";
-            return "SIDEWAY";
+        function calculateRSI(prices) {
+            let gains = 0, losses = 0;
+            for (let i = prices.length - 14; i < prices.length; i++) {
+                let diff = prices[i] - prices[i-1];
+                if (diff >= 0) gains += diff; else losses -= diff;
+            }
+            let rs = gains / losses;
+            return 100 - (100 / (1 + rs));
         }
 
-        function checkSignal(price, vol, atr, structure) {
-            const pattern = detectPattern(globalData);
-            if (vol > 1.8) {
-                execute(structure === "TĂNG" ? "BUY" : "SELL", "TREND JACKPOT 🔥", atr, pattern);
-            } else if (structure === "SIDEWAY" && pattern.includes("RÚT RÂU")) {
-                if (pattern.includes("DƯỚI")) execute("BUY", "VÉT RÂU SIDEWAY 💤", atr, pattern);
-                if (pattern.includes("TRÊN")) execute("SELL", "VÉT RÂU SIDEWAY 💤", atr, pattern);
+        function checkScalpSignal(price, rsi, data) {
+            const lastK = data[data.length - 1];
+            const open = parseFloat(lastK[1]);
+            const high = parseFloat(lastK[2]);
+            const low = parseFloat(lastK[3]);
+            const close = parseFloat(lastK[4]);
+
+            // Logic Rút râu + RSI quá mua/quá bán
+            const lowerWick = Math.min(open, close) - low;
+            const upperWick = high - Math.max(open, close);
+            const body = Math.abs(close - open);
+
+            if (rsi < 30 && lowerWick > body * 1.5) {
+                executeOrder("BUY", price);
+            } else if (rsi > 70 && upperWick > body * 1.5) {
+                executeOrder("SELL", price);
             }
         }
 
-        function detectPattern(data) {
-            const c = data[data.length-1];
-            const o = parseFloat(c[1]), h = parseFloat(c[2]), l = parseFloat(c[3]), cl = parseFloat(c[4]);
-            const body = Math.abs(cl - o), lower = Math.min(o, cl) - l, upper = h - Math.max(o, cl);
-            if (lower > body * 1.5) return "RÚT RÂU DƯỚI 🚀";
-            if (upper > body * 1.5) return "RÚT RÂU TRÊN ❄️";
-            return "NẾN CHUẨN";
+        async function executeOrder(type, price) {
+            isTrading = true;
+            entryPrice = price;
+            tradeType = type;
+            
+            const sl = type === "BUY" ? price - (currentATR * 2) : price + (currentATR * 2);
+            const tp = type === "BUY" ? price + (currentATR * 4) : price - (currentATR * 4);
+
+            document.getElementById('botStatus').innerText = `🏹 ĐANG GỒNG LỆNH ${type}...`;
+            document.getElementById('botStatus').classList.add('trading');
+
+            let msg = `⚔️ **KÈO SCALP ${currentSymbol}**\n\n` +
+                      `🎯 Lệnh: **${type}**\n` +
+                      `📍 Entry: **${price.toLocaleString()}**\n` +
+                      `🛑 SL: **${sl.toFixed(2)}**\n` +
+                      `💰 TP: **${tp.toFixed(2)}**\n` +
+                      `💵 Vol: **0.01 (Vốn 113u)**`;
+
+            const keyboard = {
+                inline_keyboard: [
+                    [{ text: "📊 Check PnL", callback_data: "check_pnl" }, { text: "✅ Xong/Reset", callback_data: "done" }],
+                    [{ text: "🛑 Đóng Lệnh Ngay", callback_data: "close_now" }]
+                ]
+            };
+
+            sendTeleFull(msg, keyboard);
         }
 
-        function execute(type, mode, atr, pattern) {
-            isTrading = true;
-            const p = basePrice + priceOffset;
-            const entry2 = (type === "BUY") ? p - (atr*0.3) : p + (atr*0.3);
-            const sl = (type === "BUY") ? p - (atr*2) : p + (atr*2);
-            const tp = (type === "BUY") ? p + (atr*6) : p - (atr*6);
+        function updateLivePnL(currentPrice) {
+            let pnl = tradeType === "BUY" ? (currentPrice - entryPrice) : (entryPrice - currentPrice);
+            let pnlPercent = (pnl / entryPrice) * 100;
+            document.getElementById('pnlDisplay').innerText = `LIVE PnL: ${pnl > 0 ? '+' : ''}${pnl.toFixed(2)} USD (${pnlPercent.toFixed(2)}%)`;
+            document.getElementById('pnlDisplay').style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+        }
 
-            let msg = `⚔️ **KÈO SCALP MASTER**\n\n📌 Mode: **${mode}**\n🎯 Lệnh: **${type}**\n\n📍 Entry 1: **${p.toFixed(2)}**\n📍 Entry 2: **${entry2.toFixed(2)}**\n🛑 SL: **${sl.toFixed(2)}** (~5u)\n💰 TP: **${tp.toFixed(2)}** (+20u++)\n\n⚠️ *Đi Vol 0.01 cho vốn 113u!*`;
-            
-            const keyboard = { inline_keyboard: [[{ text: "✅ XONG KÈO", callback_data: "done" }]] };
-            sendTeleWithKB(msg, keyboard);
+        async function sendTeleFull(msg, kb) {
+            await fetch(`https://telegram.org{TELE_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'Markdown', reply_markup: kb })
+            });
         }
 
         async function checkTeleCommands() {
             try {
-                const r = await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=1`);
+                const r = await fetch(`https://telegram.org{TELE_TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
                 const d = await r.json();
-                if (d.result) {
+                if (d.result && d.result.length > 0) {
                     for (let u of d.result) {
                         lastUpdateId = u.update_id;
-                        let cmd = u.message ? u.message.text.toLowerCase() : (u.callback_query ? u.callback_query.data : "");
+                        let cmd = u.callback_query ? u.callback_query.data : (u.message?.text?.toLowerCase());
 
                         if (cmd === "done" || cmd === "/done") {
                             isTrading = false;
-                            sendTele("✅ Đã Reset. Chờ kèo Scalp mới!");
+                            document.getElementById('botStatus').innerText = "HỆ THỐNG ĐANG QUÉT CẤU TRÚC...";
+                            document.getElementById('botStatus').classList.remove('trading');
+                            document.getElementById('pnlDisplay').innerText = "Vốn mục tiêu: 113.00 USD";
+                            sendTele("✅ **RESET THÀNH CÔNG.** Đang tìm tín hiệu mới...");
                         }
-                        if (cmd === "/sltp") {
-                            const p = basePrice + priceOffset;
-                            const atr = calculateATR(globalData);
-                            execute("BUY/SELL (Tùy cấu trúc)", "SOÁT LỆNH NHANH", atr, "N/A");
-                        }
-                        if (cmd.startsWith("/sync")) {
-                            const p = parseFloat(cmd.replace("/sync",""));
-                            if (!isNaN(p)) {
-                                priceOffset = p - basePrice;
-                                sendTele(`🎯 Đã khớp giá sàn: ${p.toFixed(2)}`);
-                            }
+                        if (cmd === "check_pnl") {
+                            const curPrice = document.getElementById('mainPrice').innerText;
+                            sendTele(`📊 **TRẠNG THÁI LỆNH:**\nCặp: ${currentSymbol}\nGiá hiện tại: ${curPrice}\nPnL: ${document.getElementById('pnlDisplay').innerText}`);
                         }
                     }
                 }
             } catch (e) {}
         }
 
-        function sendTele(msg) {
-            fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}&parse_mode=Markdown`);
+        function updateNews() {
+            const news = [
+                "FED họp về lãi suất: Thị trường kỳ vọng giữ nguyên.",
+                "Dòng tiền BTC ETF tiếp tục đổ bộ vào thị trường.",
+                "SOL vượt mốc kháng cự quan trọng, hệ sinh thái bùng nổ.",
+                "CPI Mỹ sắp công bố: Cẩn trọng biến động mạnh."
+            ];
+            document.getElementById('newsContent').innerText = "📰 TIN TỨC: " + news[Math.floor(Math.random() * news.length)];
         }
 
-        function sendTeleWithKB(msg, kb) {
-            fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}&parse_mode=Markdown&reply_markup=${JSON.stringify(kb)}`);
+        function changeAsset() {
+            currentSymbol = document.getElementById('assetSelect').value;
+            isTrading = false;
+            sendTele(`🔄 Đã chuyển sang quét cặp: **${currentSymbol}**`);
+        }
+
+        function sendTele(msg) {
+            fetch(`https://telegram.org{TELE_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}&parse_mode=Markdown`);
         }
     </script>
 </body>
